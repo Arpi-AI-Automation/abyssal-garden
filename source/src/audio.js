@@ -34,7 +34,8 @@ function mkSound(ac) {
   const bub = pool(4, 0.12), chime = pool(3, 1.2), whale = pool(2, 2, 'triangle');
   // heartbeat: a dry low thump, only while the shark is hunting. `danger` (0–1) is set in game.js.
   const heartG = G(0.0001, out), heartO = N(OscillatorNode, { type: 'sine', frequency: 46 }, BQ('lowpass', 180, 0.7, heartG));
-  let beatAt = ac.currentTime + 0.4, dub = 0;
+  const airG = G(0.0001, out), airO = N(OscillatorNode, { type: 'sine', frequency: 480 }, BQ('bandpass', 700, 2.2, airG));
+  let beatAt = ac.currentTime + 0.4, dub = 0, airAt = ac.currentTime + 1;
   // one note: pitch glides f0 -> f1 over dur, level rises to vol in att then dies away
   const play = (vs, t, f0, f1, dur, vol, att) => {
     const v = vs.shift(), f = v.o.frequency, g = v.g.gain; vs.push(v);
@@ -67,7 +68,18 @@ function mkSound(ac) {
           dub = dub ? 0 : 1;
         }
       } else { heartG.gain.setTargetAtTime(0.0001, t, 0.08); beatAt = t + 0.3; dub = 0; }
-    } catch { beatAt = t + 0.4; dub = 0; }
+      const warn = airWarn < 0 ? 0 : airWarn > 1 ? 1 : airWarn;
+      if (warn > 0.2) {
+        if (airAt < t) airAt = t;
+        if (airAt < t + 0.22) {
+          airO.frequency.setValueAtTime(380 + warn * 220, airAt);
+          airG.gain.setValueAtTime(0.0001, airAt);
+          airG.gain.exponentialRampToValueAtTime(0.03 + warn * 0.05, airAt + 0.015);
+          airG.gain.exponentialRampToValueAtTime(0.0001, airAt + 0.11);
+          airAt += 1.2 - warn * 0.75;
+        }
+      } else airAt = t + 0.5;
+    } catch { beatAt = t + 0.4; dub = 0; airAt = t + 0.5; }
     if (t > tB) { // a burst of 1-6 bubbles: short rising blips, smaller bubbles higher and shorter
       let tt = t;
       for (let n = 1 + rnd() * rnd() * 6 | 0; n--;) { const f = rr(380, 1300); play(bub, tt, f, f * rr(1.4, 2.2), 0.05 + 40 / f, rr(0.03, 0.08), 0.006); tt += rr(0.07, 0.2); }

@@ -1,9 +1,9 @@
 # Abyssal Garden
 
-**A dreamy underwater world you can swim through, right in your browser — and a shark that would rather you didn't.**
+**A dreamy underwater world you can swim through, right in your browser — with sharks to dodge, gold to find, and math to practise.**
 
 Towering kelp forests, sunbeams pouring through a rippling surface, a sunken ship, manta rays gliding overhead.
-And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 112 KB HTML file**.
+And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 126 KB HTML file**.
 
 ![Kelp forest with a stone whale tail and a manta ray](.github/screenshots/whale-fluke.jpg)
 
@@ -15,18 +15,24 @@ And all of it is made by code: no images, no 3D models, no sound files. The whol
 
 Nothing to install, and it works offline. It needs a browser with **WebGPU**. If you see *"This scene needs WebGPU"*, update your browser or switch to Chrome / Edge.
 
-## Shark chase
+## How a run works
 
-One shark patrols the garden. While it is only wandering it swims slowly, tail sweeping, and will not notice you through thick kelp or the hull of the sunken ship.
+Two sharks are already swimming near you when you dive in. More join as the minutes pass, up to five, and they get a little faster. They stay in the area instead of vanishing across the garden. An arrow at the edge of the screen points at any shark you cannot see, and a dark outline keeps their shape readable in the murk.
 
-- If you are in the open and inside its sight, it locks on and speeds up.
-- A red glow grows in from the edges of the screen as it gets closer, and a heartbeat (made in the browser, like the rest of the sound) quickens. Sound starts when you dive in, on the first click or tap.
-- Break its line of sight — swim into a thick kelp patch, or into the hold of the wreck — and it searches for a few seconds, then gives up and goes back to patrolling.
-- If it reaches you, you are caught. The screen shows how long you lasted and your best time on this browser, and **Swim again** starts a new run from the opening view.
+- A shark that spots you circles and speeds up for a couple of seconds before it can catch you. The red edge glow and the heartbeat start then.
+- **Sprint** (`Shift`, or a second finger) is faster than a chase, but only for a short burst. The gold bar is stamina.
+- Thick kelp and the inside of the sunken ship break its line of sight. Getting far enough away does too. It then gives up and goes back to wandering.
+- A shark can catch you only from the front, while you are looking toward it. One that comes from behind or from off the side of the screen cannot.
 
-A clock at the top of the screen counts the current run. The best time is kept in `localStorage` (`abyssalBest`).
+You have **three hearts** and **45 seconds of air**. The cyan bar is air. Swim up to the surface to fill it. When it is low you hear a warning beep. Running out of air, or being caught, costs a heart and gives you a short moment where you cannot be caught. The last heart ends the run.
 
-Coins and an air meter are not in this version. The chase, the clock and the end screen live in [`source/src/game.js`](source/src/game.js), which is the place those would plug in.
+**Gold coins** sit in the kelp, around the wreck and near the seabed. They glow. **Golden fish** swim about and dart away if you get close; they are worth more. A compass ring at the bottom left points toward the nearest coin.
+
+Touching a coin or a fish freezes the whole garden, including the sharks and the air, and asks a math question. You have 10 seconds. The questions stay at the same level the whole time: times tables up to 12×12, adding two two-digit numbers, or subtracting two two-digit numbers without going below zero. A right answer scores points, and a streak of right answers is worth more each time. A wrong answer or a timeout costs a heart, and the right answer is shown for a moment so you can see it. Type the number, or tap the pad.
+
+The clock is at the top. Your best score and best time are remembered in this browser (`abyssalScore` and `abyssalBest`). **Game over** shows the score, how many coins and fish you found, and the time.
+
+The rules live in [`source/src/game.js`](source/src/game.js).
 
 ## What's down there
 
@@ -51,7 +57,8 @@ Coins and an air meter are not in this version. The chase, the clock and the end
 | Look around | Move the mouse |
 | Swim | `W` `A` `S` `D` |
 | Up / down | `E` / `Q` |
-| Swim faster | Hold `Shift` |
+| Sprint (uses stamina) | Hold `Shift` |
+| Refill air | Swim up to the surface |
 | Jump to a viewpoint | `1` to `6` (the spots in the screenshots) |
 | Menu | `Esc` releases the mouse and opens the menu with the list of controls; **Resume** takes you back |
 | Sound on / off | `M` (sound starts when you dive in) |
@@ -101,7 +108,7 @@ This writes a new `index.html` next to this README. `npm run build:readable` wri
 | [`source/src/world.js`](source/src/world.js) | The world layout: rock walls, arches, tunnels, kelp forests, sponge gardens, fish schools, mantas, the ship and the whale tail. **A good place to start.** |
 | [`source/src/shaders.js`](source/src/shaders.js) | The look: water and fog colors, lighting, kelp, rocks, the water surface and light rays (WGSL shader code) |
 | [`source/src/main.js`](source/src/main.js) | The renderer, the camera, the controls, the six viewpoints and the camera path the world is laid out around |
-| [`source/src/game.js`](source/src/game.js) | The shark: patrol, sight, chase, hiding, the survival clock and the caught screen |
+| [`source/src/game.js`](source/src/game.js) | Sharks, air, stamina, coins, golden fish, the math questions and the score |
 | [`source/src/audio.js`](source/src/audio.js) | The soundscape, plus the heartbeat while the shark is hunting |
 | [`source/src/quality.js`](source/src/quality.js) | The detail levels: which one a device starts on, and what is remembered between visits |
 | [`source/src/math.js`](source/src/math.js) | Noise, random numbers and mesh-building helpers |

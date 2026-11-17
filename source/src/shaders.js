@@ -600,7 +600,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   l.y += sin(w * .5 - l.x * 2.4) * rear * .025;
   let pec = sat((abs(i.p.z) - .12) * 4.5);
   l.y += sin(w * .85) * pec * .035;
-  let sc = 6.2;
+  let sc = 7.2;
   let T = vec3f(fx, fy, fz); let Up = vec3f(upx, upy, upz); let Sd = vec3f(sx, syy, sz);
   let wp = i.a.xyz + (T * l.x + Up * l.y + Sd * l.z) * sc;
   o.cp = g.vp * vec4f(wp, 1.); o.wp = wp; o.n = T * n.x + Up * n.y + Sd * n.z; o.op = i.p; o.sd = i.b.w;
@@ -635,7 +635,55 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   var c = alb * (E * (.22 + .78 * sat(dot(n, L))) * (.4 + ca) + amb(i.wp, n, vv.g, z) * 1.15);
   c += E * pow(sat(dot(n, normalize(V + L))), 26.) * .65;
   c += vec3f(.28, .55, .65) * pow(1. - sat(dot(n, V)), 3.) * .22 * vv.g;
-  return fin(fog(c, i.wp, z));
+  let ndv = sat(dot(n, V));
+  let sil = pow(1. - ndv, 1.5);
+  c = mix(c, vec3f(.012, .018, .028), sil * .82);
+  var fogged = fog(c, i.wp, z);
+  fogged = mix(fogged, vec3f(.015, .03, .045), sil * ss(110., 16., dist) * .85);
+  return fin(fogged);
+}
+// coins: a.xyz position, b.x alive (0 hides), b.y spin phase
+@vertex fn vsCoin(i: VI) -> VO {
+  var o: VO;
+  let ang = g.cam.w * 1.7 + i.b.y;
+  let ca = cos(ang); let sa = sin(ang);
+  let p = vec3f(ca * i.p.x + sa * i.p.z, i.p.y + sin(g.cam.w * 1.3 + i.b.y) * .15, -sa * i.p.x + ca * i.p.z);
+  let n = vec3f(ca * i.n.x + sa * i.n.z, i.n.y, -sa * i.n.x + ca * i.n.z);
+  let sc = i.b.x * 1.45;
+  let w = i.a.xyz + p * sc;
+  o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = n; o.op = i.p; o.sd = i.b.y; o.lt = 1.;
+  return o;
+}
+@fragment fn fsCoin(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let V = normalize(g.cam.xyz - i.wp);
+  let fr = pow(1. - sat(dot(n, V)), 2.);
+  let tw = pow(.5 + .5 * sin(g.cam.w * 4. + i.sd * 12.), 6.);
+  var c = vec3f(1.35, .82, .22) * (.7 + fr * 1.6) + vec3f(1.6, 1.15, .45) * tw;
+  c += vec3f(1.5, 1.1, .5) * pow(sat(dot(n, normalize(V + g.sun.xyz))), 18.) * .9;
+  return fin(fog(c, i.wp, zone(i.wp)) + vec3f(.55, .32, .05));
+}
+// golden fish: a.xyz position, a.w yaw, b.x pitch, b.y tail Hz, b.z scale (0 hides)
+@vertex fn vsGold(i: VI) -> VO {
+  var o: VO;
+  let yaw = i.a.w; let pit = i.b.x;
+  let cp = cos(pit); let sp = sin(pit); let sy = sin(yaw); let cy = cos(yaw);
+  let T = vec3f(cp * sy, sp, -cp * cy);
+  let Sd = vec3f(cy, 0., sy);
+  let Up = vec3f(-sy * sp, cp, cy * sp);
+  var l = i.p;
+  let wag = sin(g.cam.w * i.b.y * 6.283 + l.x * 6.) * sat(.2 - l.x) * .35;
+  l.z += wag;
+  let sc = i.b.z;
+  let w = i.a.xyz + (T * l.x + Up * l.y + Sd * l.z) * sc;
+  o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = T * i.n.x + Up * i.n.y + Sd * (i.n.z + wag); o.op = i.p; o.sd = i.b.y; o.lt = 1.;
+  return o;
+}
+@fragment fn fsGold(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let V = normalize(g.cam.xyz - i.wp);
+  let top = ss(-.2, .6, n.y);
+  var alb = mix(vec3f(1.4, 1.05, .35), vec3f(.85, .45, .08), top);
+  alb += vec3f(1.2, .8, .2) * pow(1. - sat(dot(n, V)), 2.) * .45;
+  return fin(fog(alb * (1.1 + sat(dot(n, g.sun.xyz))), i.wp, zone(i.wp)));
 }
 `;
 
