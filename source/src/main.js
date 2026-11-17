@@ -104,6 +104,7 @@ const pLeafS = scenePipe(mLeaf, 'vs', 'fs', [ibLeaf], { strip: true, constants: 
 const pLeafF = scenePipe(mLeaf, 'vs', 'fs', [ibLeaf], { strip: true, constants: { ROWS: 3 } });
 const pFish = scenePipe(mAnim, 'vsFish', 'fsFish', [vbSolid, ibAnim]);
 const pManta = scenePipe(mAnim, 'vsManta', 'fsManta', [vbSolid, ibAnim]);
+const pShark = scenePipe(mAnim, 'vsShark', 'fsShark', [vbSolid, ibAnim]);
 const pSurf = scenePipe(mSurf, 'vs', 'fs', [], { strip: true }), pBack = scenePipe(mSurf, 'vsB', 'fsB', [], { strip: true });
 const pBub = scenePipe(mSpr, 'vsBub', 'fsBub', [ibBub], { strip: true, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } });
 const ADD = { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } };
@@ -144,7 +145,7 @@ const SUN = (() => { const v = [0.27, 1, -0.24], l = hypot(...v); return v.map((
 await say('Sculpting the seabed…', 0.25, 1200);
 // marks a load in progress (quality.js); leaving the page before it ends is not a crash
 keep('abyssalLoad', 1);
-addEventListener('pagehide', () => keep('abyssalLoad', ''));
+addEventListener('pagehide', () => { keep('abyssalLoad', ''); try { if (GS[BEST] > 0) keep('abyssalBest', GS[BEST]); } catch { /* private mode */ } });
 let D;
 {
   const prims = primBuffer();
@@ -268,6 +269,7 @@ for (const p of POSES) flyPts.push([p[0], -40, p[2]]);
 
 await say('Growing kelp…', 0.73, 2500);
 const Wd = makeWorld(D, T, flyPts, POSES);
+gameReady(Wd);
 for (const p of POSES) p[1] += Wd.gy(p[0], p[2]);
 D = Wd.gy = T.smp = null; // with gy goes the generator's working memory (about 200 MB)
 
@@ -280,7 +282,8 @@ const meshes = [meshChunk(1, 3), meshChunk(7, 3), meshChunk(13, 3), meshChunk(22
   meshLathe([[0, 0, 0.5], [0.5, 0, 0.7], [0.72, 0.18, 1], [0.74, 0.38, 1], [0.62, 0.5, 0.9], [0.48, 0.42, 0.45], [0.4, 0.2, 0.15], [0, 0.14, 0.06]], 18, 0.25, 10),
   meshCoral(0), meshCoral(1), meshTubes()].map((m) => m.build());
 meshes.push(meshFluke(), meshShip().build(), meshManta().build(), meshFish().build(),
-  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build());
+  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build(), meshShark().build());
+const SHARK = meshes[meshes.length - 1];
 let nV = 0, nI = 0;
 for (const m of meshes) { m.v0 = nV; m.i0 = nI; nV += m.nv; nI += m.ib.length; }
 const allV = new Uint8Array(nV * 16), allI = new Uint32Array(nI);
@@ -293,6 +296,7 @@ const ibSolids = buf(solidData, BU.VERTEX);
 const ibChunk = Wd.chunks.map((c) => buf(c.data, BU.VERTEX)), ibProp = Wd.props.map((c) => buf(c.data, BU.VERTEX));
 const ibBig = buf(new Uint8Array(Wd.big.buf), BU.VERTEX), ibBigF = buf(new Uint8Array(Wd.bigF.buf), BU.VERTEX), ibSmall = buf(new Uint8Array(Wd.small.buf), BU.VERTEX);
 const ibFish = buf(Wd.fish, BU.VERTEX), ibManta = buf(Wd.mantas, BU.VERTEX), ibBubbles = buf(Wd.bubbles, BU.VERTEX), ibSnowB = buf(Wd.snow, BU.VERTEX);
+const ibShark = device.createBuffer({ size: 32, usage: BU.VERTEX | BU.COPY_DST });
 const ibGl = buf(Wd.glints, BU.VERTEX), nGl = Wd.glints.length / 8;
 const nFish = Wd.fish.length / 8, nManta = Wd.mantas.length / 8, nBub = Wd.bubbles.length / 8, nSnow = Wd.snow.length / 4;
 const MANTA = meshes[12], FISH = meshes[13];
@@ -440,8 +444,9 @@ function render() {
   const zx = cx - PURPLE[0], zz = cz - PURPLE[1]; let zt = (44 - sqrt(zx * zx + zz * zz)) / 18; zt = zt < 0 ? 0 : zt > 1 ? 1 : zt;
   m[51] = zt * zt * (3 - 2 * zt);
   let ek = (-cy - 8) / 26; ek = ek < 0 ? 0 : ek > 1 ? 1 : ek;
-  m[56] = EXPO * (0.6 + 0.4 * ek); m[57] = RAYS; m[58] = det;
+  m[56] = EXPO * (0.6 + 0.4 * ek); m[57] = RAYS; m[58] = det; m[59] = vignette;
   Q.writeBuffer(ubo, 0, UB);
+  Q.writeBuffer(ibShark, 0, sharkInst);
   WT[0] = F[TIME]; Q.writeBuffer(uboW, 0, WT);
 
   { let cr = floor((cz - OZ) / CELLW) | 0; cr = cr < 0 ? 0 : cr > CELLS - 1 ? CELLS - 1 : cr; let n = 0; rowOrd[n++] = cr; for (let d = 1; d < CELLS; d++) { if (cr - d >= 0) rowOrd[n++] = cr - d; if (cr + d < CELLS) rowOrd[n++] = cr + d; } }
@@ -472,6 +477,8 @@ function render() {
   }
   r.setPipeline(pManta); r.setVertexBuffer(1, ibManta); r.drawIndexed(MANTA.ib.length, nManta, MANTA.i0, MANTA.v0, 0);
   r.setPipeline(pFish); r.setVertexBuffer(1, ibFish); r.drawIndexed(FISH.ib.length, nFish, FISH.i0, FISH.v0, 0);
+  r.setPipeline(pShark); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibShark); r.setIndexBuffer(ibMesh, 'uint32');
+  r.drawIndexed(SHARK.ib.length, 1, SHARK.i0, SHARK.v0, 0);
   // kelp and plants: 9-row blades up close, 5 rows mid-range, a decimated set far away
   r.setPipeline(pLeaf); r.setVertexBuffer(0, ibBig); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 18, 0, 24);
   r.setPipeline(pLeaf5); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 10, 24, 58);
@@ -571,6 +578,20 @@ function frame(now) {
     F[YAW] = yaw; F[PIT] = pitch; F[VX] = vx; F[VY] = vy; F[VZ] = vz; F[MX] = x - F[CX]; F[MY] = y - F[CY]; F[MZ] = z - F[CZ];
     collide();
   }
+  // shark chase: paused in the menu, ignored by the dev fly-through, frozen once it catches you
+  if (GS[CAUGHT]) { /* vignette stays up behind the caught screen */ }
+  else if (!GS[RUN] || menu) gameIdle(dt);
+  else {
+    GS[SURV] += dt;
+    if (GS[SURV] > GS[BEST]) GS[BEST] = GS[SURV];
+    if (gameTick(dt, flyCam)) onCaught();
+    const sec = GS[SURV] | 0;
+    if (sec !== hudSec) {
+      hudSec = sec; $('tc').textContent = fmt(GS[SURV]);
+      $('tb').textContent = GS[BEST] >= 1 ? 'best ' + fmt(GS[BEST]) : '';
+      if (!(sec % 5) && GS[SURV] >= GS[BEST]) { try { localStorage.abyssalBest = GS[BEST]; } catch { /* private mode */ } }
+    }
+  }
   render();
   if (hud) {
     hN++; if (dtr > hMax) hMax = dtr; if (dtr < hMin) hMin = dtr; if (dtr > hPer * 1.5) { hLate++; hTot++; }
@@ -615,16 +636,30 @@ for (const n of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) canvas.a
 
 // ---------------------------------------------------------------- menu
 // The scene keeps rendering (blurred by CSS) behind the menu. Esc, losing the mouse or the corner button open it.
-let menu = true;
+// flyCam is set by dev.js during the scripted fly-through. caught replaces the menu with the end screen.
+let menu = true, caught = false, flyCam = false, hudSec = -1;
+function fmt(t) { const s = t < 0 ? 0 : t | 0, m = (s / 60) | 0, r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+function onCaught() {
+  caught = true; menu = true; release();
+  F[VX] = F[VY] = F[VZ] = 0;
+  if (GS[SURV] > GS[BEST]) GS[BEST] = GS[SURV];
+  try { localStorage.abyssalBest = GS[BEST]; } catch { /* private mode */ }
+  body.className = 'c';
+  $('es').textContent = 'You lasted ' + fmt(GS[SURV]);
+  $('eb').textContent = 'Best ' + fmt(GS[BEST]);
+  if (document.pointerLockElement) document.exitPointerLock();
+  setTimeout(() => caught && $('again').focus(), 60);
+}
 const bDive = $('d');
 const ui = (m) => {
-  if (dead) return;
+  if (dead || caught) return;
   menu = m; body.className = m ? 'm' : document.pointerLockElement ? 'g p' : 'g';
   // focus the dive button so Enter works (delayed: it can't take focus while still hidden)
   if (m) { release(); setTimeout(() => menu && bDive.focus(), 100); } else document.activeElement.blur();
 };
 const go = () => {
-  sound(); ui(false); bDive.textContent = 'Resume';
+  sound(); gameDive(); ui(false); bDive.textContent = 'Resume';
+  hudSec = -1; $('tc').textContent = fmt(GS[SURV]); $('tb').textContent = GS[BEST] >= 1 ? 'best ' + fmt(GS[BEST]) : '';
   // phones: go fullscreen and ask for landscape; where that is refused the CSS rotation still applies
   if (mob) document.documentElement.requestFullscreen?.()?.then(() => screen.orientation.lock('landscape')).catch(() => 0);
   if (!mob) capture();
@@ -632,7 +667,11 @@ const go = () => {
 bDive.onclick = go; $('o').onclick = () => ui(true);
 // detail buttons: the current level is lit, the others reload the page with theirs
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { keep('abyssal', 2 - i); location.reload(); }; });
-document.addEventListener('pointerlockchange', () => ui(!document.pointerLockElement));
+document.addEventListener('pointerlockchange', () => { if (!caught) ui(!document.pointerLockElement); });
+$('again').onclick = () => {
+  caught = false; gameRestart(); lookAt(...POSES[0]); F[VX] = F[VY] = F[VZ] = 0; hudSec = -1; go();
+};
+if (GS[BEST] > 0) $('br').textContent = 'Best ' + fmt(GS[BEST]);
 
 // draw the first frame and wait for the GPU to finish it (pipelines get compiled on first use) before the reveal
 lookAt(...POSES[0]);

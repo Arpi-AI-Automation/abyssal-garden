@@ -32,6 +32,9 @@ function mkSound(ac) {
   // pooled voices: oscillator -> envelope -> pan -> dry + reverb
   const pool = (n, send, type) => Array.from({ length: n }, () => { const p = N(StereoPannerNode, {}, out, G(send, wet)), g = G(0, p); return { p, g, o: N(OscillatorNode, { type }, g) }; });
   const bub = pool(4, 0.12), chime = pool(3, 1.2), whale = pool(2, 2, 'triangle');
+  // heartbeat: a dry low thump, only while the shark is hunting. `danger` (0–1) is set in game.js.
+  const heartG = G(0.0001, out), heartO = N(OscillatorNode, { type: 'sine', frequency: 46 }, BQ('lowpass', 180, 0.7, heartG));
+  let beatAt = ac.currentTime + 0.4, dub = 0;
   // one note: pitch glides f0 -> f1 over dur, level rises to vol in att then dies away
   const play = (vs, t, f0, f1, dur, vol, att) => {
     const v = vs.shift(), f = v.o.frequency, g = v.g.gain; vs.push(v);
@@ -49,6 +52,22 @@ function mkSound(ac) {
     lt = now; lx = F[CX]; ly = F[CY]; lz = F[CZ];
     rush.gain.setTargetAtTime(0.5 * pow(min(v / 26, 1), 1.2), t, 0.3); rushF.frequency.setTargetAtTime(220 + v * 14, t, 0.3);
     const s = clamp(1 + ly / 30, 0, 1); wash.gain.setTargetAtTime(0.25 + 0.55 * s * s, t, 0.5);
+    const prox = danger < 0 ? 0 : danger > 1 ? 1 : danger;
+    try {
+      if (prox > 0.04) {
+        if (beatAt < t) beatAt = t;
+        let guard = 0;
+        while (beatAt < t + 0.28 && guard++ < 6) {
+          const amp = (dub ? 0.07 : 0.1) + prox * (dub ? 0.1 : 0.16);
+          heartO.frequency.setValueAtTime(dub ? 58 : 44, beatAt);
+          heartG.gain.setValueAtTime(0.0001, beatAt);
+          heartG.gain.exponentialRampToValueAtTime(amp, beatAt + 0.018);
+          heartG.gain.exponentialRampToValueAtTime(0.0001, beatAt + (dub ? 0.09 : 0.14));
+          beatAt += dub ? 0.96 - prox * 0.64 : 0.13;
+          dub = dub ? 0 : 1;
+        }
+      } else { heartG.gain.setTargetAtTime(0.0001, t, 0.08); beatAt = t + 0.3; dub = 0; }
+    } catch { beatAt = t + 0.4; dub = 0; }
     if (t > tB) { // a burst of 1-6 bubbles: short rising blips, smaller bubbles higher and shorter
       let tt = t;
       for (let n = 1 + rnd() * rnd() * 6 | 0; n--;) { const f = rr(380, 1300); play(bub, tt, f, f * rr(1.4, 2.2), 0.05 + 40 / f, rr(0.03, 0.08), 0.006); tt += rr(0.07, 0.2); }

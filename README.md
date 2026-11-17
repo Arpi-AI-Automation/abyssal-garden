@@ -1,9 +1,9 @@
 # Abyssal Garden
 
-**A dreamy underwater world you can swim through, right in your browser.**
+**A dreamy underwater world you can swim through, right in your browser — and a shark that would rather you didn't.**
 
 Towering kelp forests, sunbeams pouring through a rippling surface, a sunken ship, manta rays gliding overhead.
-And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 96 KB HTML file**.
+And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 112 KB HTML file**.
 
 ![Kelp forest with a stone whale tail and a manta ray](.github/screenshots/whale-fluke.jpg)
 
@@ -11,9 +11,22 @@ And all of it is made by code: no images, no 3D models, no sound files. The whol
 
 1. Download [`index.html`](index.html).
 2. Open it in **Chrome** or **Edge** on a desktop computer.
-3. Wait a few seconds while the world is built, then press **Dive in** and start swimming.
+3. Wait a few seconds while the world is built, then press **Dive in**.
 
 Nothing to install, and it works offline. It needs a browser with **WebGPU**. If you see *"This scene needs WebGPU"*, update your browser or switch to Chrome / Edge.
+
+## Shark chase
+
+One shark patrols the garden. While it is only wandering it swims slowly, tail sweeping, and will not notice you through thick kelp or the hull of the sunken ship.
+
+- If you are in the open and inside its sight, it locks on and speeds up.
+- A red glow grows in from the edges of the screen as it gets closer, and a heartbeat (made in the browser, like the rest of the sound) quickens. Sound starts when you dive in, on the first click or tap.
+- Break its line of sight — swim into a thick kelp patch, or into the hold of the wreck — and it searches for a few seconds, then gives up and goes back to patrolling.
+- If it reaches you, you are caught. The screen shows how long you lasted and your best time on this browser, and **Swim again** starts a new run from the opening view.
+
+A clock at the top of the screen counts the current run. The best time is kept in `localStorage` (`abyssalBest`).
+
+Coins and an air meter are not in this version. The chase, the clock and the end screen live in [`source/src/game.js`](source/src/game.js), which is the place those would plug in.
 
 ## What's down there
 
@@ -88,7 +101,8 @@ This writes a new `index.html` next to this README. `npm run build:readable` wri
 | [`source/src/world.js`](source/src/world.js) | The world layout: rock walls, arches, tunnels, kelp forests, sponge gardens, fish schools, mantas, the ship and the whale tail. **A good place to start.** |
 | [`source/src/shaders.js`](source/src/shaders.js) | The look: water and fog colors, lighting, kelp, rocks, the water surface and light rays (WGSL shader code) |
 | [`source/src/main.js`](source/src/main.js) | The renderer, the camera, the controls, the six viewpoints and the camera path the world is laid out around |
-| [`source/src/audio.js`](source/src/audio.js) | The soundscape |
+| [`source/src/game.js`](source/src/game.js) | The shark: patrol, sight, chase, hiding, the survival clock and the caught screen |
+| [`source/src/audio.js`](source/src/audio.js) | The soundscape, plus the heartbeat while the shark is hunting |
 | [`source/src/quality.js`](source/src/quality.js) | The detail levels: which one a device starts on, and what is remembered between visits |
 | [`source/src/math.js`](source/src/math.js) | Noise, random numbers and mesh-building helpers |
 | [`source/src/dev.js`](source/src/dev.js) | Development tools (fly-through and benchmark), only in `dev.html` |
@@ -104,3 +118,5 @@ Some easy first tweaks:
 ## License
 
 [MIT](LICENSE): free to use, change and share, including in your own projects.
+
+The underwater world was made by Maksymilian Dendura ([Noniv/abyssal-garden](https://github.com/Noniv/abyssal-garden)). This project keeps that license and that credit.

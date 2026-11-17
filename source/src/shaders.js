@@ -576,6 +576,67 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   c += alb * sky * ca * .45 * (1. - top) + sky * pow(1. - ndv, 3.) * .35;
   return fin(fog(c, i.wp, z));
 }
+// shark: one dynamic instance. a.xyz position, a.w yaw, b.x pitch, b.y roll, b.z phase, b.w tail frequency (Hz).
+// Local mesh: nose +x. Tail sweep is a yaw of the rear half, stronger toward the caudal fin.
+@vertex fn vsShark(i: VI) -> VO {
+  var o: VO;
+  let yaw = i.a.w; let pit = i.b.x; let rol = i.b.y;
+  let cp = cos(pit); let sp = sin(pit); let cy = cos(yaw); let sy = sin(yaw); let cr = cos(rol); let sr = sin(rol);
+  let fx = cp * sy; let fy = sp; let fz = -cp * cy;
+  let rx = cy; let rz = sy;
+  let ux = -sy * sp; let uy = cp; let uz = cy * sp;
+  let sx = rx * cr + ux * sr; let syy = uy * sr; let sz = rz * cr + uz * sr;
+  let upx = ux * cr - rx * sr; let upy = uy * cr; let upz = uz * cr - rz * sr;
+  var l = i.p; var n = i.n.xyz;
+  let w = g.cam.w * i.b.w * 6.2831853 + i.b.z;
+  let rear = sat((-l.x - .02) * 1.65);
+  let ang = sin(w - l.x * 5.2) * rear * rear * clamp(.22 + i.b.w * .14, .2, .62);
+  let ca = cos(ang); let sa = sin(ang);
+  let px = l.x + .1; let pz = l.z;
+  l.x = ca * px - sa * pz - .1;
+  l.z = sa * px + ca * pz;
+  let nx = n.x; let nz = n.z;
+  n.x = ca * nx - sa * nz; n.z = sa * nx + ca * nz;
+  l.y += sin(w * .5 - l.x * 2.4) * rear * .025;
+  let pec = sat((abs(i.p.z) - .12) * 4.5);
+  l.y += sin(w * .85) * pec * .035;
+  let sc = 6.2;
+  let T = vec3f(fx, fy, fz); let Up = vec3f(upx, upy, upz); let Sd = vec3f(sx, syy, sz);
+  let wp = i.a.xyz + (T * l.x + Up * l.y + Sd * l.z) * sc;
+  o.cp = g.vp * vec4f(wp, 1.); o.wp = wp; o.n = T * n.x + Up * n.y + Sd * n.z; o.op = i.p; o.sd = i.b.w;
+  o.lt = shadow1(wp + o.n * .4);
+  return o;
+}
+@fragment fn fsShark(i: VO) -> @location(0) vec4f {
+  let dist = length(i.wp - g.cam.xyz);
+  let tx = textureSample(tD, sR, i.op.xy * 1.7 + vec2f(i.op.z, i.sd) * .6);
+  let n = normalize(i.n + (vec3f(tx.r, tx.g, .5) - vec3f(.5)) * .22);
+  let L = g.sun.xyz; let V = normalize(g.cam.xyz - i.wp);
+  let z = zone(i.wp); let vv = vol(i.wp);
+  let top = ss(-.2, .5, n.y * .7 + i.op.y * 6.);
+  var back = vec3f(.04, .065, .09) * (.7 + .55 * tx.b);
+  back = mix(back, vec3f(.10, .13, .16), ss(.55, .82, tx.a) * .4);
+  var belly = vec3f(.52, .58, .62) * (.82 + .28 * tx.b);
+  var alb = mix(belly, back, top);
+  alb = mix(alb, back * 1.35, ss(.7, .88, tx.a) * (1. - top) * .3);
+  let tip = sat((-i.op.x - .66) * 8.) + sat((abs(i.op.z) - .30) * 6.) * ss(.04, -.04, i.op.y);
+  alb = mix(alb, vec3f(.74, .78, .80), tip * .9);
+  let gill = ss(.02, 0., abs(fract(i.op.x * 15. + .15) - .55)) * ss(.16, .19, i.op.x) * ss(.32, .28, i.op.x) * ss(.03, .055, abs(i.op.z)) * ss(.1, .075, abs(i.op.z));
+  alb *= 1. - gill * .6;
+  let e1 = length((i.op - vec3f(.37, .026, .052)) * vec3f(1.15, 1.35, 1.));
+  let e2 = length((i.op - vec3f(.37, .026, -.052)) * vec3f(1.15, 1.35, 1.));
+  alb = mix(alb, vec3f(.01, .014, .02), ss(.034, .014, min(e1, e2)));
+  let glint = min(length(i.op - vec3f(.382, .034, .062)), length(i.op - vec3f(.382, .034, -.042)));
+  alb = mix(alb, vec3f(.82, .9, .94), ss(.014, .003, glint));
+  let mouth = ss(.022, 0., abs(i.op.y + .012)) * ss(.42, .48, i.op.x) * ss(.55, .5, i.op.x) * ss(.04, .008, abs(i.op.z));
+  alb = mix(alb, vec3f(.025, .02, .022), mouth);
+  let ca = caus2(i.wp, dist);
+  let E = sunE(i.wp.y, z) * i.lt;
+  var c = alb * (E * (.22 + .78 * sat(dot(n, L))) * (.4 + ca) + amb(i.wp, n, vv.g, z) * 1.15);
+  c += E * pow(sat(dot(n, normalize(V + L))), 26.) * .65;
+  c += vec3f(.28, .55, .65) * pow(1. - sat(dot(n, V)), 3.) * .22 * vv.g;
+  return fin(fog(c, i.wp, z));
+}
 `;
 
 // ---------------------------------------------------------------- water surface seen from below
@@ -776,6 +837,10 @@ fn sat3(x: vec3f) -> vec3f { return clamp(x, vec3f(0.), vec3f(1.)); }
   c = mix(c, vec3f(l), ss(.55, 1., l) * .1);
   c = mix(vec3f(l), c, .93) + vec3f(.008, .002, 0.);
   c = pow(max(c, vec3f(0.)), vec3f(1. / 2.2));
+  // mis.w is the shark-chase threat: 0 leaves the picture alone, 1 pulls a red vignette in from the edges
+  let threat = g.mis.w;
+  let vig = sat(length(q) * mix(1.85, 1.05, threat) - mix(.62, .08, threat));
+  c = mix(c, min(c * vec3f(1., .4, .36) + vec3f(.7, .04, .05) * vig, vec3f(1.)), vig * threat);
   let n = ign(fc.xy) + ign(fc.xy + 37.) - 1.;
   return vec4f(c + n / 255., 1.);
 }
