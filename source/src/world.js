@@ -646,3 +646,20 @@ function meshShark() {
   eye(0.37, 0.026, 0.052, 0.016); eye(0.37, 0.026, -0.052, 0.016);
   return m;
 }
+// flat gold coin, spun in the shader. Radius 0.5, thickness 0.12.
+function meshCoin() {
+  const m = new Mesh(), N = 18, top = [], bot = [];
+  for (let i = 0; i < N; i++) {
+    const a = i / N * TAU;
+    top.push(m.v(cos(a) * 0.5, 0.06, sin(a) * 0.5));
+    bot.push(m.v(cos(a) * 0.5, -0.06, sin(a) * 0.5));
+  }
+  const ct = m.v(0, 0.06, 0), cb = m.v(0, -0.06, 0);
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N;
+    m.tri(ct, top[i], top[j]);
+    m.tri(cb, bot[j], bot[i]);
+    m.quad(top[i], bot[i], bot[j], top[j]);
+  }
+  return m;
+}

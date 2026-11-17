@@ -105,6 +105,8 @@ const pLeafF = scenePipe(mLeaf, 'vs', 'fs', [ibLeaf], { strip: true, constants: 
 const pFish = scenePipe(mAnim, 'vsFish', 'fsFish', [vbSolid, ibAnim]);
 const pManta = scenePipe(mAnim, 'vsManta', 'fsManta', [vbSolid, ibAnim]);
 const pShark = scenePipe(mAnim, 'vsShark', 'fsShark', [vbSolid, ibAnim]);
+const pCoin = scenePipe(mAnim, 'vsCoin', 'fsCoin', [vbSolid, ibAnim]);
+const pGold = scenePipe(mAnim, 'vsGold', 'fsGold', [vbSolid, ibAnim]);
 const pSurf = scenePipe(mSurf, 'vs', 'fs', [], { strip: true }), pBack = scenePipe(mSurf, 'vsB', 'fsB', [], { strip: true });
 const pBub = scenePipe(mSpr, 'vsBub', 'fsBub', [ibBub], { strip: true, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } });
 const ADD = { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } };
@@ -145,7 +147,7 @@ const SUN = (() => { const v = [0.27, 1, -0.24], l = hypot(...v); return v.map((
 await say('Sculpting the seabed…', 0.25, 1200);
 // marks a load in progress (quality.js); leaving the page before it ends is not a crash
 keep('abyssalLoad', 1);
-addEventListener('pagehide', () => { keep('abyssalLoad', ''); try { if (GS[BEST] > 0) keep('abyssalBest', GS[BEST]); } catch { /* private mode */ } });
+addEventListener('pagehide', () => { keep('abyssalLoad', ''); saveScores(); });
 let D;
 {
   const prims = primBuffer();
@@ -282,8 +284,8 @@ const meshes = [meshChunk(1, 3), meshChunk(7, 3), meshChunk(13, 3), meshChunk(22
   meshLathe([[0, 0, 0.5], [0.5, 0, 0.7], [0.72, 0.18, 1], [0.74, 0.38, 1], [0.62, 0.5, 0.9], [0.48, 0.42, 0.45], [0.4, 0.2, 0.15], [0, 0.14, 0.06]], 18, 0.25, 10),
   meshCoral(0), meshCoral(1), meshTubes()].map((m) => m.build());
 meshes.push(meshFluke(), meshShip().build(), meshManta().build(), meshFish().build(),
-  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build(), meshShark().build());
-const SHARK = meshes[meshes.length - 1];
+  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build(), meshShark().build(), meshCoin().build());
+const SHARK = meshes[meshes.length - 2], COINM = meshes[meshes.length - 1];
 let nV = 0, nI = 0;
 for (const m of meshes) { m.v0 = nV; m.i0 = nI; nV += m.nv; nI += m.ib.length; }
 const allV = new Uint8Array(nV * 16), allI = new Uint32Array(nI);
@@ -296,7 +298,9 @@ const ibSolids = buf(solidData, BU.VERTEX);
 const ibChunk = Wd.chunks.map((c) => buf(c.data, BU.VERTEX)), ibProp = Wd.props.map((c) => buf(c.data, BU.VERTEX));
 const ibBig = buf(new Uint8Array(Wd.big.buf), BU.VERTEX), ibBigF = buf(new Uint8Array(Wd.bigF.buf), BU.VERTEX), ibSmall = buf(new Uint8Array(Wd.small.buf), BU.VERTEX);
 const ibFish = buf(Wd.fish, BU.VERTEX), ibManta = buf(Wd.mantas, BU.VERTEX), ibBubbles = buf(Wd.bubbles, BU.VERTEX), ibSnowB = buf(Wd.snow, BU.VERTEX);
-const ibShark = device.createBuffer({ size: 32, usage: BU.VERTEX | BU.COPY_DST });
+const ibShark = device.createBuffer({ size: NS * 32, usage: BU.VERTEX | BU.COPY_DST });
+const ibCoin = device.createBuffer({ size: NCOIN * 32, usage: BU.VERTEX | BU.COPY_DST });
+const ibGold = device.createBuffer({ size: NFISH * 32, usage: BU.VERTEX | BU.COPY_DST });
 const ibGl = buf(Wd.glints, BU.VERTEX), nGl = Wd.glints.length / 8;
 const nFish = Wd.fish.length / 8, nManta = Wd.mantas.length / 8, nBub = Wd.bubbles.length / 8, nSnow = Wd.snow.length / 4;
 const MANTA = meshes[12], FISH = meshes[13];
@@ -447,6 +451,8 @@ function render() {
   m[56] = EXPO * (0.6 + 0.4 * ek); m[57] = RAYS; m[58] = det; m[59] = vignette;
   Q.writeBuffer(ubo, 0, UB);
   Q.writeBuffer(ibShark, 0, sharkInst);
+  Q.writeBuffer(ibCoin, 0, coinInst);
+  Q.writeBuffer(ibGold, 0, goldInst);
   WT[0] = F[TIME]; Q.writeBuffer(uboW, 0, WT);
 
   { let cr = floor((cz - OZ) / CELLW) | 0; cr = cr < 0 ? 0 : cr > CELLS - 1 ? CELLS - 1 : cr; let n = 0; rowOrd[n++] = cr; for (let d = 1; d < CELLS; d++) { if (cr - d >= 0) rowOrd[n++] = cr - d; if (cr + d < CELLS) rowOrd[n++] = cr + d; } }
@@ -478,12 +484,15 @@ function render() {
   r.setPipeline(pManta); r.setVertexBuffer(1, ibManta); r.drawIndexed(MANTA.ib.length, nManta, MANTA.i0, MANTA.v0, 0);
   r.setPipeline(pFish); r.setVertexBuffer(1, ibFish); r.drawIndexed(FISH.ib.length, nFish, FISH.i0, FISH.v0, 0);
   r.setPipeline(pShark); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibShark); r.setIndexBuffer(ibMesh, 'uint32');
-  r.drawIndexed(SHARK.ib.length, 1, SHARK.i0, SHARK.v0, 0);
+  r.drawIndexed(SHARK.ib.length, NS, SHARK.i0, SHARK.v0, 0);
+  r.setPipeline(pGold); r.setVertexBuffer(1, ibGold); r.drawIndexed(FISH.ib.length, NFISH, FISH.i0, FISH.v0, 0);
   // kelp and plants: 9-row blades up close, 5 rows mid-range, a decimated set far away
   r.setPipeline(pLeaf); r.setVertexBuffer(0, ibBig); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 18, 0, 24);
   r.setPipeline(pLeaf5); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 10, 24, 58);
   r.setPipeline(pLeafF); r.setVertexBuffer(0, ibBigF); drawCells(r, Wd.bigF.start, Wd.bigF.lo, Wd.bigF.hi, 5, false, 6, 58, 150);
   r.setPipeline(pLeafS); r.setVertexBuffer(0, ibSmall); drawCells(r, Wd.small.start, Wd.small.lo, Wd.small.hi, 1.5, false, 6, 0, 70);
+  r.setPipeline(pCoin); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibCoin); r.setIndexBuffer(ibMesh, 'uint32');
+  r.drawIndexed(COINM.ib.length, NCOIN, COINM.i0, COINM.v0, 0);
   r.setPipeline(pSurf); r.draw(4);
   r.setPipeline(pBack); r.draw(4);
   r.setPipeline(pBub); r.setVertexBuffer(0, ibBubbles); r.draw(4, nBub);
@@ -557,8 +566,9 @@ function frame(now) {
     if (was !== pix + det) keep('abyssal', [LV, pix < top ? pix | 0 : '', det]); // nothing kept at full resolution
     dynN = dynT = dynG = dynGN = 0; resize();
   }
-  F[TIME] += dt;
-  {
+  if (!gamePaused() && !R[OVER]) F[TIME] += dt;
+  if (gamePaused() || R[OVER]) { mdx = mdy = lkx = lky = l2x = l2y = 0; }
+  else {
     // touch: holding the finger away from where it went down keeps turning, like a joystick
     if (tId >= 0) {
       const tr = 4 / (innerWidth < innerHeight ? innerWidth : innerHeight); let jx = (tx - tx0) * tr, jy = (ty - ty0) * tr;
@@ -570,7 +580,7 @@ function frame(now) {
     const ax = lkx * kq, ay = lky * kq; lkx -= ax; lky -= ay; l2x += ax; l2y += ay;
     const dyw = l2x * kq, dpt = l2y * kq; l2x -= dyw; l2y -= dpt;
     const yaw = F[YAW] + dyw; let pitch = F[PIT] - dpt; pitch = pitch < -1.55 ? -1.55 : pitch > 1.55 ? 1.55 : pitch;
-    const sp = ks || tN > 1 ? 26 : 7, k = 1 - exp(-dt * 4.5), mf = tId >= 0 ? 0.7 : kf - kb, mr = kr - kl, mu = ku - kd, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
+    const sp = gamePace(ks || tN > 1), k = 1 - exp(-dt * 4.5), mf = tId >= 0 ? 0.7 : kf - kb, mr = kr - kl, mu = ku - kd, cp = cos(pitch), sy = sin(yaw), cw = cos(yaw);
     const vx = F[VX] + ((sy * cp * mf + cw * mr) * sp - F[VX]) * k, vy = F[VY] + ((sin(pitch) * mf + mu) * sp - F[VY]) * k, vz = F[VZ] + ((-cw * cp * mf + sy * mr) * sp - F[VZ]) * k;
     let x = F[CX] + vx * dt, y = F[CY] + vy * dt, z = F[CZ] + vz * dt;
     const rad = sqrt(x * x + z * z); if (rad > 150) { x *= 150 / rad; z *= 150 / rad; }
@@ -578,20 +588,12 @@ function frame(now) {
     F[YAW] = yaw; F[PIT] = pitch; F[VX] = vx; F[VY] = vy; F[VZ] = vz; F[MX] = x - F[CX]; F[MY] = y - F[CY]; F[MZ] = z - F[CZ];
     collide();
   }
-  // shark chase: paused in the menu, ignored by the dev fly-through, frozen once it catches you
-  if (GS[CAUGHT]) { /* vignette stays up behind the caught screen */ }
-  else if (!GS[RUN] || menu) gameIdle(dt);
-  else {
-    GS[SURV] += dt;
-    if (GS[SURV] > GS[BEST]) GS[BEST] = GS[SURV];
-    if (gameTick(dt, flyCam)) onCaught();
-    const sec = GS[SURV] | 0;
-    if (sec !== hudSec) {
-      hudSec = sec; $('tc').textContent = fmt(GS[SURV]);
-      $('tb').textContent = GS[BEST] >= 1 ? 'best ' + fmt(GS[BEST]) : '';
-      if (!(sec % 5) && GS[SURV] >= GS[BEST]) { try { localStorage.abyssalBest = GS[BEST]; } catch { /* private mode */ } }
-    }
-  }
+  // questions, the menu and game over hold the sharks, the air and the clock
+  if (gamePaused()) { if (gameQuiz(dt)) onOver(); }
+  else if (R[OVER]) { /* end screen is up */ }
+  else if (!R[RUN] || menu) gameIdle(dt);
+  else if (gameTick(dt, flyCam)) onOver();
+  gamePaint();
   render();
   if (hud) {
     hN++; if (dtr > hMax) hMax = dtr; if (dtr < hMin) hMin = dtr; if (dtr > hPer * 1.5) { hLate++; hTot++; }
@@ -614,7 +616,14 @@ const key = (e, v) => {
   }
 };
 // behind the menu only the stats and mute keys work
-addEventListener('keydown', (e) => { if (menu && e.code !== 'KeyH' && e.code !== 'KeyM') return; sound(); key(e, 1); });
+function quizKey(e) {
+  if (qShow > 0) { e.preventDefault(); return; }
+  if (e.key === 'Enter') { e.preventDefault(); const f = $('qin'); gameAnswer(f ? f.value : ''); }
+  else if (e.target && e.target.id === 'qin') return;
+  else if (e.key >= '0' && e.key <= '9') { e.preventDefault(); gamePress(e.key); }
+  else if (e.key === 'Backspace') { e.preventDefault(); gamePress('bs'); }
+}
+addEventListener('keydown', (e) => { if (gamePaused()) { quizKey(e); return; } if (menu && e.code !== 'KeyH' && e.code !== 'KeyM') return; sound(); key(e, 1); });
 addEventListener('keyup', (e) => key(e, 0));
 const release = () => { kf = kb = kl = kr = ku = kd = ks = 0; tId = -1; tN = 0; };
 const capture = () => { sound(); const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => canvas.requestPointerLock()).catch(() => 0); };
@@ -637,29 +646,35 @@ for (const n of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) canvas.a
 // ---------------------------------------------------------------- menu
 // The scene keeps rendering (blurred by CSS) behind the menu. Esc, losing the mouse or the corner button open it.
 // flyCam is set by dev.js during the scripted fly-through. caught replaces the menu with the end screen.
-let menu = true, caught = false, flyCam = false, hudSec = -1;
+let menu = true, caught = false, flyCam = false;
 function fmt(t) { const s = t < 0 ? 0 : t | 0, m = (s / 60) | 0, r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r; }
-function onCaught() {
+function onOver() {
   caught = true; menu = true; release();
   F[VX] = F[VY] = F[VZ] = 0;
-  if (GS[SURV] > GS[BEST]) GS[BEST] = GS[SURV];
-  try { localStorage.abyssalBest = GS[BEST]; } catch { /* private mode */ }
+  saveScores();
   body.className = 'c';
-  $('es').textContent = 'You lasted ' + fmt(GS[SURV]);
-  $('eb').textContent = 'Best ' + fmt(GS[BEST]);
+  $('es').textContent = 'Score ' + (R[SCORE] | 0);
+  $('eco').textContent = 'Coins ' + (R[COINS] | 0) + '    Fish ' + (R[FISHN] | 0);
+  $('et').textContent = 'Time ' + fmt(R[SURV]);
+  $('eb').textContent = 'Best score ' + (R[HIGH] | 0) + '    Best time ' + fmt(R[BEST]);
+  const q = $('quiz'); if (q) q.style.display = 'none';
   if (document.pointerLockElement) document.exitPointerLock();
   setTimeout(() => caught && $('again').focus(), 60);
 }
 const bDive = $('d');
 const ui = (m) => {
-  if (dead || caught) return;
+  if (dead || caught || gamePaused()) return;
   menu = m; body.className = m ? 'm' : document.pointerLockElement ? 'g p' : 'g';
   // focus the dive button so Enter works (delayed: it can't take focus while still hidden)
   if (m) { release(); setTimeout(() => menu && bDive.focus(), 100); } else document.activeElement.blur();
 };
 const go = () => {
   sound(); gameDive(); ui(false); bDive.textContent = 'Resume';
-  hudSec = -1; $('tc').textContent = fmt(GS[SURV]); $('tb').textContent = GS[BEST] >= 1 ? 'best ' + fmt(GS[BEST]) : '';
+  $('tc').textContent = fmt(R[SURV]);
+  const bits = [];
+  if (R[HIGH] > 0) bits.push('Best score ' + (R[HIGH] | 0));
+  if (R[BEST] > 0) bits.push('Best time ' + fmt(R[BEST]));
+  $('br').textContent = bits.join('   ');
   // phones: go fullscreen and ask for landscape; where that is refused the CSS rotation still applies
   if (mob) document.documentElement.requestFullscreen?.()?.then(() => screen.orientation.lock('landscape')).catch(() => 0);
   if (!mob) capture();
@@ -667,11 +682,17 @@ const go = () => {
 bDive.onclick = go; $('o').onclick = () => ui(true);
 // detail buttons: the current level is lit, the others reload the page with theirs
 $('q').querySelectorAll('button').forEach((b, i) => { if (i === 2 - LV) b.className = 'on'; else b.onclick = () => { keep('abyssal', 2 - i); location.reload(); }; });
-document.addEventListener('pointerlockchange', () => { if (!caught) ui(!document.pointerLockElement); });
+document.addEventListener('pointerlockchange', () => { if (!caught && !gamePaused()) ui(!document.pointerLockElement); });
 $('again').onclick = () => {
-  caught = false; gameRestart(); lookAt(...POSES[0]); F[VX] = F[VY] = F[VZ] = 0; hudSec = -1; go();
+  caught = false; lookAt(...POSES[0]); F[VX] = F[VY] = F[VZ] = 0; gameRestart(); go();
 };
-if (GS[BEST] > 0) $('br').textContent = 'Best ' + fmt(GS[BEST]);
+$('pad').onclick = (e) => { const b = e.target.closest('button'); if (b) gamePress(b.dataset.k); };
+{
+  const bits = [];
+  if (R[HIGH] > 0) bits.push('Best score ' + (R[HIGH] | 0));
+  if (R[BEST] > 0) bits.push('Best time ' + fmt(R[BEST]));
+  $('br').textContent = bits.join('   ');
+}
 
 // draw the first frame and wait for the GPU to finish it (pipelines get compiled on first use) before the reveal
 lookAt(...POSES[0]);
