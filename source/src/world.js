@@ -34,6 +34,8 @@ const CLEARS = [
   [-60, -36, -60, 36, 13, 8], [-60, 42, -18, 46, 12, 8], [4, 58, 8, 100, 24, 10], [-34, -74, -56, -46, 11, 8],
 ];
 const PURPLE = [6, 84];
+// Coarse kelp density for the shark's line of sight (game.js). 3 m cells over the 384 m world.
+const KGW = 128, KGC = 3;
 const zoneP = (x, z) => sstep(44, 26, hypot(x - PURPLE[0], z - PURPLE[1]));
 const MAGENTA = [[14, 6, 13], [-4, 20, 9], [6, 84, 30], [-58, 8, 10], [50, 30, 12], [8, -70, 10], [-12, -98, 9], [-36, 44, 9], [-46, -60, 9], [24, 42, 8], [-56, 26, 9], [-44, 38, 8], [-10, 44, 8], [12, 24, 8], [-50, -45, 8]];
 const magAt = (x, z) => {
@@ -99,7 +101,16 @@ function makeWorld(D, T, flyPts, POSES) {
   const chunks = Array.from({ length: NCHUNK }, () => Array.from({ length: nCells }, () => []));
   const glints = [];
   const rel = (i, f, r) => { const p = POSES[i]; let fx = p[3] - p[0], fz = p[5] - p[2]; const l = hypot(fx, fz); fx /= l; fz /= l; return [p[0] + fx * f - fz * r, p[2] + fz * f + fx * r]; };
-  const bubbles = [], kelpAbs = new Float32Array((NX / 2) * (NY / 2) * (NZ / 2));
+  const bubbles = [], kelpAbs = new Float32Array((NX / 2) * (NY / 2) * (NZ / 2)), kelpF = new Float32Array(KGW * KGW);
+  // a column paints a small blob; overlapping columns become the thick patches the player can hide in
+  const stampKelp = (x, z, amt) => {
+    const cx = (x - OX) / KGC, cz = (z - OZ) / KGC, i0 = floor(cx), j0 = floor(cz);
+    for (let j = j0 - 1; j <= j0 + 1; j++) for (let i = i0 - 1; i <= i0 + 1; i++) {
+      if (i < 0 || j < 0 || i >= KGW || j >= KGW) continue;
+      const dx = i + 0.5 - cx, dz = j + 0.5 - cz, w = 1 - sqrt(dx * dx + dz * dz) / 1.7;
+      if (w > 0) kelpF[i + KGW * j] += amt * w;
+    }
+  };
 
   // --- surface queries
   const fl = [];
@@ -151,6 +162,7 @@ function makeWorld(D, T, flyPts, POSES) {
     for (let hy = floor((y - OY) / VS / 2); hy <= floor((y + H - OY) / VS / 2); hy++) {
       if (hy >= 0 && hy < NY / 2 && hx > 0 && hx < NX / 2 - 1 && hz > 0 && hz < NZ / 2 - 1) kelpAbs[hx + NX / 2 * (hy + NY / 2 * hz)] += 0.17;
     }
+    stampKelp(x, z, 38 * dens * (0.65 + strands * 0.2));
   };
   const KELPZ = [[-32, -5, 13, 0.85], [0, -86, 46, 1], [72, -26, 27, 0.9], [-60, -4, 11, 0.8], [0, -36, 12, 0.55], [-17, -8, 6, 0.8], [15, -8, 6, 0.8], [-4, 120, 20, 0.4], [-45, -63, 15, 0.9], [62, -26, 12, 0.9], [-100, 70, 30, 0.8], [100, 60, 30, 0.8], [-95, -90, 32, 0.8], [105, -85, 30, 0.7]];
   const NOKELP = [[-5, -106.5, 8], [4.6, -109.4, 10], [14.2, -112.3, 12], [-26, -100, 6], [-20.5, -101.7, 4.5], [-14.8, -104.5, 6], [-7.5, -107.8, 7], [4, 112, 11], [2, 4, 15], [42, 22, 12], [6, 78, 19], [-58, -16, 8], [9, -66, 9], [8, -76, 8]];
@@ -305,7 +317,9 @@ function makeWorld(D, T, flyPts, POSES) {
   // --- set pieces
   const gy = (x, z) => { const f = floorsAt(x, z); return f.length ? f[f.length - 2] : -45; };
   solid(10, -5, gy(-5, -4) - 0.6, -4, 1, qMul(qAxis(0, 1, 0, 1.2), qMul(qAxis(0, 0, 1, 0.16), qAxis(1, 0, 0, -0.3))), 2, 0.3, 1, 0);          // whale fluke
-  solid(11, 59.5, -23, 6, 1, qMul(qAxis(0, 1, 0, -PI / 2), qMul(qAxis(0, 0, 1, -0.1), qAxis(1, 0, 0, 0.32))), 3, 0.5, 1, 0); // ship hull
+  const shipP = new Float32Array([59.5, -23, 6]);
+  const shipQ = new Float32Array(qMul(qAxis(0, 1, 0, -PI / 2), qMul(qAxis(0, 0, 1, -0.1), qAxis(1, 0, 0, 0.32))));
+  solid(11, shipP[0], shipP[1], shipP[2], 1, shipQ, 3, 0.5, 1, 0); // ship hull
   // barrel sponges in front of viewpoint 4, small sponges around the fluke base
   rseed(12);
   for (const b of [[7, 3.2, 1.3, 4], [8.4, 4.6, 1.0, 6], [9.6, 2.6, 1.5, 4], [11, 5, 1.1, 5], [8, -3.6, 1.2, 4], [12.5, 2, 1.2, 6], [9, 3.9, 0.8, 4]]) { const p = rel(3, b[0], b[1]), c = POSES[3]; let ux = (c[0] - p[0]) * 0.07, uz = (c[2] - p[1]) * 0.07; const l = hypot(ux, 1, uz); solid(b[3], p[0], gy(p[0], p[1]) - 0.1, p[1], b[2], qFromY(ux / l, 1 / l, uz / l), 4, rnd(), 1, 0); }
@@ -387,7 +401,9 @@ function makeWorld(D, T, flyPts, POSES) {
     for (let c = 0; c < nCells; c++) { const a = L[c]; for (let i = 0; i < a.length; i += 12) { for (let j = 0; j < 12; j++) data[k++] = a[i + j]; lo[c] = min(lo[c], a[i + 1] - 3); hi[c] = max(hi[c], a[i + 1] + 3); } }
     return { data, n, start, lo, hi };
   };
-  return { gy, glints: new Float32Array(glints), chunks: chunks.map(packC), props: props.map(packC), big: pack(big), bigF: pack(big, 2, 1.5), small: pack(small), solids: { data: new Float32Array(sol.data), ranges: sol.ranges }, bubbles: new Float32Array(bubbles), volD, gm, fish: new Float32Array(fish), mantas: new Float32Array(mantas), snow };
+  const kelp = new Uint8Array(KGW * KGW);
+  for (let i = 0; i < kelp.length; i++) kelp[i] = kelpF[i] > 255 ? 255 : kelpF[i];
+  return { gy, glints: new Float32Array(glints), chunks: chunks.map(packC), props: props.map(packC), big: pack(big), bigF: pack(big, 2, 1.5), small: pack(small), solids: { data: new Float32Array(sol.data), ranges: sol.ranges }, bubbles: new Float32Array(bubbles), volD, gm, fish: new Float32Array(fish), mantas: new Float32Array(mantas), snow, kelp, shipP, shipQ };
 }
 const fract = (x) => x - floor(x);
 
@@ -553,5 +569,80 @@ function meshFish() {
   for (let i = 0; i < 4; i++) for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6; m.quad(rings[i][k], rings[i + 1][k], rings[i + 1][k2], rings[i][k2]); }
   const a = m.v(-0.33, 0, 0), b = m.v(-0.56, 0.2, 0), c = m.v(-0.47, 0, 0), d = m.v(-0.56, -0.2, 0);
   m.tri(a, b, c); m.tri(a, c, d);
+  return m;
+}
+// Ship hull in the mesh's local space (bow +x). `loose` widens the test so a ray through the planks counts;
+// the tight test is the hold, where the player can hide. Same cross-section as meshShip.
+function shipSection(lx, ly, lz, loose) {
+  if (lx < -16.5 || lx > 16.5) return false;
+  const ax = abs(lx), b = 5.6 * pow(max(1 - pow(ax / 17, lx < 0 ? 3.6 : 2.6), 0), 0.5);
+  const d = 7.6 * (1 - 0.36 * pow(ax / 17, 2.5)), s = 0.5 + (lx > 0 ? 3 : 3.8) * pow(ax / 17, 2.2);
+  const span = s + d; if (span < 0.4) return false;
+  const u = (ly + d) / span, u0 = loose ? -0.02 : 0.14, u1 = loose ? 1.05 : 0.86;
+  if (u < u0 || u > u1) return false;
+  const half = b * pow(max(sin(clamp(u, 0, 1) * PI), 0), 0.8) * (loose ? 1.15 : 0.68) + (loose ? 0.35 : 0);
+  return abs(lz) < half;
+}
+// shark: nose +x, back +y, length about 1.1 before the caudal fin. Scaled by 6.2 in the shader (~8 m).
+function meshShark() {
+  const m = new Mesh(), S = 12;
+  const prof = [[0.52, 0.010, 0.008], [0.44, 0.042, 0.034], [0.34, 0.078, 0.060], [0.22, 0.102, 0.080], [0.08, 0.112, 0.088], [-0.06, 0.100, 0.076], [-0.18, 0.074, 0.052], [-0.30, 0.046, 0.030], [-0.40, 0.026, 0.016], [-0.48, 0.014, 0.009]];
+  const rings = [];
+  for (const [x, h, w] of prof) {
+    const ring = [];
+    for (let s = 0; s < S; s++) {
+      const a = s / S * TAU, sn = sin(a), cs = cos(a);
+      ring.push(m.v(x, sn * h * (sn > 0 ? 0.88 : 1.06), cs * w));
+    }
+    rings.push(ring);
+  }
+  for (let i = 0; i < rings.length - 1; i++) for (let s = 0; s < S; s++) {
+    const s2 = (s + 1) % S;
+    m.quad(rings[i][s], rings[i][s2], rings[i + 1][s2], rings[i + 1][s]);
+  }
+  const tip = m.v(0.58, 0, 0), nose = rings[0], tail = rings[rings.length - 1], ped = m.v(-0.5, 0, 0);
+  for (let s = 0; s < S; s++) { m.tri(tip, nose[s], nose[(s + 1) % S]); m.tri(tail[s], ped, tail[(s + 1) % S]); }
+  // a fin is a thin shell between a leading edge and a trailing edge
+  const fin = (lead, trail, nx, ny, nz) => {
+    const N = lead.length, V = [];
+    for (let i = 0; i < N; i++) {
+      const h = lead[i][3], p = lead[i], q = trail[i];
+      V.push(m.v(p[0] + nx * h, p[1] + ny * h, p[2] + nz * h), m.v(p[0] - nx * h, p[1] - ny * h, p[2] - nz * h), m.v(q[0] + nx * h, q[1] + ny * h, q[2] + nz * h), m.v(q[0] - nx * h, q[1] - ny * h, q[2] - nz * h));
+    }
+    for (let i = 0; i < N - 1; i++) {
+      const a = i * 4, b = a + 4;
+      m.quad(V[a], V[b], V[b + 2], V[a + 2]);
+      m.quad(V[a + 1], V[a + 3], V[b + 3], V[b + 1]);
+      m.quad(V[a], V[a + 1], V[b + 1], V[b]);
+      m.quad(V[a + 2], V[b + 2], V[b + 3], V[a + 3]);
+    }
+    const e = (N - 1) * 4;
+    m.quad(V[e], V[e + 2], V[e + 3], V[e + 1]);
+  };
+  // dorsal, second dorsal, heterocercal tail, anal — kept in proportion with the body (height ~0.11)
+  fin([[0.14, 0.09, 0, 0.010], [0.05, 0.16, 0, 0.008], [-0.02, 0.22, 0, 0.006], [-0.07, 0.14, 0, 0.005]], [[0.04, 0.09, 0, 0.010], [-0.04, 0.12, 0, 0.007], [-0.09, 0.14, 0, 0.006], [-0.13, 0.08, 0, 0.005]], 0, 0, 1);
+  fin([[-0.24, 0.045, 0, 0.006], [-0.30, 0.09, 0, 0.005]], [[-0.32, 0.04, 0, 0.006], [-0.36, 0.055, 0, 0.004]], 0, 0, 1);
+  fin([[-0.46, 0.015, 0, 0.012], [-0.56, 0.09, 0, 0.009], [-0.66, 0.16, 0, 0.006], [-0.74, 0.20, 0, 0.004]], [[-0.50, 0, 0, 0.011], [-0.58, 0.035, 0, 0.008], [-0.66, 0.07, 0, 0.006], [-0.72, 0.10, 0, 0.004]], 0, 0, 1);
+  fin([[-0.46, -0.01, 0, 0.009], [-0.54, -0.07, 0, 0.006], [-0.60, -0.11, 0, 0.004]], [[-0.52, -0.012, 0, 0.008], [-0.58, -0.04, 0, 0.005], [-0.62, -0.055, 0, 0.003]], 0, 0, 1);
+  fin([[-0.18, -0.04, 0, 0.006], [-0.26, -0.09, 0, 0.005]], [[-0.28, -0.035, 0, 0.006], [-0.34, -0.05, 0, 0.004]], 0, 0, 1);
+  for (const s of [1, -1]) {
+    fin([[0.16, -0.025, s * 0.055, 0.008], [0.04, -0.045, s * 0.15, 0.006], [-0.06, -0.05, s * 0.24, 0.004], [-0.12, -0.02, s * 0.16, 0.003]], [[0.06, -0.03, s * 0.04, 0.008], [-0.02, -0.04, s * 0.09, 0.006], [-0.10, -0.035, s * 0.14, 0.004], [-0.14, -0.015, s * 0.08, 0.003]], 0, 1, 0);
+    fin([[-0.04, -0.045, s * 0.035, 0.005], [-0.12, -0.07, s * 0.09, 0.004]], [[-0.12, -0.035, s * 0.025, 0.005], [-0.16, -0.04, s * 0.05, 0.003]], 0, 1, 0);
+  }
+  const eye = (cx, cy, cz, r) => {
+    const N = 4, ringsE = [];
+    for (let j = 0; j <= N; j++) {
+      const v = j / N * PI, y = cy + cos(v) * r, rad = sin(v) * r, seg = j === 0 || j === N ? 1 : 6, ring = [];
+      for (let s = 0; s < seg; s++) { const a = s / seg * TAU; ring.push(m.v(cx + cos(a) * rad, y, cz + sin(a) * rad)); }
+      ringsE.push(ring);
+    }
+    for (let j = 0; j < N; j++) {
+      const A = ringsE[j], B = ringsE[j + 1];
+      if (A.length === 1) for (let s = 0; s < B.length; s++) m.tri(A[0], B[s], B[(s + 1) % B.length]);
+      else if (B.length === 1) for (let s = 0; s < A.length; s++) m.tri(A[s], B[0], A[(s + 1) % A.length]);
+      else for (let s = 0; s < A.length; s++) { const s2 = (s + 1) % A.length; m.quad(A[s], A[s2], B[s2], B[s]); }
+    }
+  };
+  eye(0.37, 0.026, 0.052, 0.016); eye(0.37, 0.026, -0.052, 0.016);
   return m;
 }

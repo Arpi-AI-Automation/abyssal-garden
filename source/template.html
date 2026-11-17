@@ -106,6 +106,39 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   #h { display: block; }
 }
 
+/* goal line on the start menu, and the best time once there is one */
+#goal {
+  max-width: 28em; font-size: .72em; font-weight: 650; letter-spacing: .01em; text-transform: none;
+  line-height: 1.45; color: #d7f6ff; text-wrap: balance;
+}
+#br { font-size: .68em; letter-spacing: .14em; text-transform: uppercase; color: #7ff3ff; }
+#br:empty { display: none; }
+
+/* survival clock while swimming */
+#tm {
+  position: absolute; top: .55em; left: 50%; z-index: 2; transform: translateX(-50%); display: none;
+  margin: 0; padding: .4em 1em .3em; border-radius: .6em; background: #03131cb3;
+  box-shadow: inset 0 0 0 2px #7ff3ff55; font: 800 .95em/1.15 system-ui, sans-serif;
+  letter-spacing: .12em; text-align: center; pointer-events: none;
+}
+.g #tm { display: block; }
+#tm b { display: block; margin-top: .15em; font-size: .62em; font-weight: 700; letter-spacing: .16em; color: #7ff3ff; }
+
+/* caught by the shark */
+#end {
+  position: absolute; inset: 0; z-index: 3; display: none; place-content: center; justify-items: center;
+  gap: .7em; padding: 1.5em; text-align: center; background: radial-gradient(#3a101488, #03131ce0 68%);
+}
+.c #end { display: grid; }
+.c #m { opacity: 0; visibility: hidden; }
+body.c canvas { filter: blur(.35vmax) brightness(.42) saturate(.75); transform: none; }
+#end h2 {
+  margin: 0; font: 900 4.2em/1 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #ffd2cc;
+  filter: drop-shadow(0 .06em .25em #000a);
+}
+#end p { font-size: .85em; letter-spacing: .1em; text-transform: uppercase; }
+#again { background: linear-gradient(#ffc4be, #e23d3d); color: #2a0608; box-shadow: inset 0 -.2em #0003, 0 0 1.6em #e23d3d99; }
+
 /* in the scene: a small menu button (hidden while the mouse is captured, Esc does the same) and the stats line */
 #o {
   position: absolute; top: .6em; right: .6em; display: none; padding: .3em .6em; background: #03222dd9;
@@ -121,11 +154,13 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 </head>
 <body class=l>
 <canvas id=c></canvas>
+<p id=tm><span id=tc>0:00</span><b id=tb></b></p>
 <div id=m>
   <h1>Abyssal Garden</h1>
   <div id=a>
     <div id=l><div id=p><i id=b></i></div><p id=s>Diving…</p><p id=w hidden>Use Google Chrome for optimal experience</p></div>
     <div id=g>
+      <p id=goal>A shark patrols the garden. Stay out of its sight — thick kelp and the inside of the sunken ship will hide you. Survive as long as you can.</p>
       <button id=d>Dive in</button>
       <p id=q><span>Detail</span><button>Low</button><button>Medium</button><button>High</button></p>
       <div id=k>
@@ -142,6 +177,7 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
         </p>
       </div>
       <p id=h>Hold to swim forward · slide to steer · second finger to go faster</p>
+      <p id=br></p>
     </div>
   </div>
   <p id=f>
@@ -150,6 +186,12 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   </p>
 </div>
 <button id=o aria-label=Menu>≡</button>
+<div id=end>
+  <h2>Caught!</h2>
+  <p id=es>You lasted 0:00</p>
+  <p id=eb>Best 0:00</p>
+  <button id=again>Swim again</button>
+</div>
 <pre id=i></pre>
 <script>
 /*SCRIPT*/

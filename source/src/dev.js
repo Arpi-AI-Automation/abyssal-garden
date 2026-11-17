@@ -7,7 +7,7 @@
 {
   const LOGN = 1 << 16, logFrame = new Float32Array(LOGN), logGpu = new Float32Array(LOGN);
   let flying = false, bench = false, last = 0, nFrame = 0, nGpu = 0;
-  const stop = () => { flying = bench = false; dynT = 0; };
+  const stop = () => { flying = bench = flyCam = false; dynT = 0; };
   const report = () => {
     const st = (a, n) => { const s = Array.from(a.subarray(0, n)).sort((x, y) => x - y); let sum = 0; for (const v of s) sum += v; return { n, avg: sum / n, p99: s[min(n - 1, floor(n * 0.99))], max: s[n - 1] }; };
     const fm = (o) => `avg ${o.avg.toFixed(2)}  p99 ${o.p99.toFixed(2)}  max ${o.max.toFixed(2)} ms`;
@@ -17,6 +17,7 @@
   // frame() moves the free camera and then calls render(): step in between and put the camera on the path instead
   const draw = render;
   render = () => {
+    flyCam = flying;
     if (flying) {
       const dtr = F[LAST] - last; last = F[LAST];
       F[FLT] += min(dtr / 1000, 0.1); flyAt();
@@ -30,7 +31,7 @@
     if (e.code === 'KeyF' || e.code === 'KeyB') {
       if (flying) stop();
       else {
-        flying = true; bench = e.code === 'KeyB'; F[FLT] = 0; last = F[LAST]; nFrame = nGpu = 0;
+        flying = flyCam = true; bench = e.code === 'KeyB'; F[FLT] = 0; last = F[LAST]; nFrame = nGpu = 0;
         // a benchmark hides the stats line and holds the resolution: dynT at -Infinity keeps frame() from tuning it
         if (bench) { hud = false; info.textContent = ''; dynT = -Infinity; }
       }
