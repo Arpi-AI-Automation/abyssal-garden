@@ -3,7 +3,7 @@
 **A dreamy underwater world you can swim through, right in your browser — with sharks to dodge, gold to find, and math to practise.**
 
 Towering kelp forests, sunbeams pouring through a rippling surface, a sunken ship, manta rays gliding overhead.
-And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 126 KB HTML file**.
+And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 127 KB HTML file**.
 
 ![Kelp forest with a stone whale tail and a manta ray](.github/screenshots/whale-fluke.jpg)
 
@@ -24,11 +24,11 @@ Two sharks are already swimming near you when you dive in. More join as the minu
 - Thick kelp and the inside of the sunken ship break its line of sight. Getting far enough away does too. It then gives up and goes back to wandering.
 - A shark can catch you only from the front, while you are looking toward it. One that comes from behind or from off the side of the screen cannot.
 
-You have **three hearts** and **45 seconds of air**. The cyan bar is air. Swim up to the surface to fill it. When it is low you hear a warning beep. Running out of air, or being caught, costs a heart and gives you a short moment where you cannot be caught. The last heart ends the run.
+You have **three hearts** and **75 seconds of air**. The cyan bar is air. Swim up to the surface to fill it. When it is low you hear a warning beep. Running out of air, or being caught, costs a heart and gives you a short moment where you cannot be caught. The last heart ends the run.
 
 **Gold coins** sit in the kelp, around the wreck and near the seabed. They glow. **Golden fish** swim about and dart away if you get close; they are worth more. A compass ring at the bottom left points toward the nearest coin.
 
-Touching a coin or a fish freezes the whole garden, including the sharks and the air, and asks a math question. You have 10 seconds. The questions stay at the same level the whole time: times tables up to 12×12, adding two two-digit numbers, or subtracting two two-digit numbers without going below zero. A right answer scores points, and a streak of right answers is worth more each time. A wrong answer or a timeout costs a heart, and the right answer is shown for a moment so you can see it. Type the number, or tap the pad.
+Touching a coin or a golden fish freezes the whole garden, including the sharks and the air, and asks a math question. You have 20 seconds. The questions stay at the same level the whole time: times tables up to 12×12, adding two two-digit numbers, or subtracting two two-digit numbers without going below zero. A right answer scores points, and a streak of right answers is worth more each time. A wrong answer or a timeout costs a heart, and the right answer is shown for a moment so you can see it. Type the number, or tap the pad.
 
 The clock is at the top. Your best score and best time are remembered in this browser (`abyssalScore` and `abyssalBest`). **Game over** shows the score, how many coins and fish you found, and the time.
 

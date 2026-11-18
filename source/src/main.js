@@ -617,14 +617,16 @@ const key = (e, v) => {
 };
 // behind the menu only the stats and mute keys work
 function quizKey(e) {
-  if (qShow > 0) { e.preventDefault(); return; }
-  if (e.key === 'Enter') { e.preventDefault(); const f = $('qin'); gameAnswer(f ? f.value : ''); }
-  else if (e.target && e.target.id === 'qin') return;
-  else if (e.key >= '0' && e.key <= '9') { e.preventDefault(); gamePress(e.key); }
-  else if (e.key === 'Backspace') { e.preventDefault(); gamePress('bs'); }
+  e.preventDefault();
+  if (e.stopPropagation) e.stopPropagation();
+  if (qShow > 0) return;
+  const act = quizAct(e.key, e.code);
+  if (!act) return;
+  if (act === 'ok') { const f = $('qin'); if (f) f.value = digitsOnly(f.value); gameAnswer(f ? f.value : ''); }
+  else gamePress(act);
 }
 addEventListener('keydown', (e) => { if (gamePaused()) { quizKey(e); return; } if (menu && e.code !== 'KeyH' && e.code !== 'KeyM') return; sound(); key(e, 1); });
-addEventListener('keyup', (e) => key(e, 0));
+addEventListener('keyup', (e) => { if (gamePaused()) e.preventDefault(); key(e, 0); });
 const release = () => { kf = kb = kl = kr = ku = kd = ks = 0; tId = -1; tN = 0; };
 const capture = () => { sound(); const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => canvas.requestPointerLock()).catch(() => 0); };
 canvas.addEventListener('click', capture);
@@ -687,6 +689,8 @@ $('again').onclick = () => {
   caught = false; lookAt(...POSES[0]); F[VX] = F[VY] = F[VZ] = 0; gameRestart(); go();
 };
 $('pad').onclick = (e) => { const b = e.target.closest('button'); if (b) gamePress(b.dataset.k); };
+$('qin').addEventListener('beforeinput', (e) => { if (e.data && /\D/.test(e.data)) e.preventDefault(); });
+$('qin').addEventListener('input', () => { const f = $('qin'); const c = digitsOnly(f.value); if (f.value !== c) f.value = c; });
 {
   const bits = [];
   if (R[HIGH] > 0) bits.push('Best score ' + (R[HIGH] | 0));

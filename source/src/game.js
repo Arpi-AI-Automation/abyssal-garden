@@ -20,7 +20,8 @@ const fishS = new Float64Array(NFISH * 8); // x y z yaw spd phase alive flee
 const R = new Float64Array(20);
 const SURV = 0, BEST = 1, SCORE = 2, HIGH = 3, AIR = 4, STAM = 5, LIVES = 6, INV = 7;
 const COMBO = 8, COINS = 9, FISHN = 10, RUN = 11, OVER = 12, PAUSE = 13, QT = 14, QPTS = 15, NSH = 16, SPRINT = 17;
-const AIRMAX = 45, SIGHT = 32, LOCKNEED = 2.3, GIVEUP = 3.2, DROPD = 40;
+const AIRMAX = 75, AIRLOW = 20, SIGHT = 32, LOCKNEED = 2.3, GIVEUP = 3.2, DROPD = 40;
+const QSEC = 20, COIN_R2 = 1.35, FISH_R2 = 3.2;
 
 let danger = 0, vignette = 0, airWarn = 0;
 let kelpMap, shipP, shipQ, kelpHide = 255, kelpBlock = 255;
@@ -296,9 +297,9 @@ function showQuiz() {
   const card = el('qq'), note = el('qnote'), ans = el('qin'), tim = el('qt'), title = el('qtitle');
   if (title) title.textContent = 'Math time!';
   if (card) card.textContent = qText;
-  if (note) note.textContent = 'Ten seconds. A right answer scores. A miss costs a heart.';
+  if (note) note.textContent = 'Twenty seconds. A right answer scores. A miss costs a heart.';
   if (ans) { ans.value = ''; ans.readOnly = false; }
-  if (tim) tim.textContent = '10';
+  if (tim) tim.textContent = String(QSEC);
   const q = el('quiz'); if (q) q.style.display = 'grid';
   if (typeof document !== 'undefined') {
     document.body.className = 'g q';
@@ -321,11 +322,27 @@ function showMiss() {
 function beginQuiz(points) {
   if (R[PAUSE] || R[OVER]) return;
   makeQ();
-  R[PAUSE] = 1; R[QT] = 10; R[QPTS] = points; qShow = 0; qDead = 0;
+  R[PAUSE] = 1; R[QT] = QSEC; R[QPTS] = points; qShow = 0; qDead = 0;
+  F[VX] = F[VY] = F[VZ] = 0;
+  if (typeof release === 'function') release();
   showQuiz();
+}
+function digitsOnly(s) {
+  let o = '';
+  const t = String(s);
+  for (let i = 0; i < t.length && o.length < 4; i++) { const c = t.charCodeAt(i); if (c >= 48 && c <= 57) o += t[i]; }
+  return o;
+}
+// '' ignores the key. Digits, backspace/delete and enter (including the numpad) are the only accepts.
+function quizAct(key, code) {
+  if (key === 'Enter' || code === 'Enter' || code === 'NumpadEnter') return 'ok';
+  if (key === 'Backspace' || key === 'Delete') return 'bs';
+  if (typeof key === 'string' && key.length === 1) { const c = key.charCodeAt(0); if (c >= 48 && c <= 57) return key; }
+  return '';
 }
 function gameAnswer(raw) {
   if (!R[PAUSE] || qShow > 0) return;
+  raw = digitsOnly(raw);
   const n = +raw;
   if (raw !== '' && n === qAns) {
     R[COMBO] += 1;
@@ -358,26 +375,33 @@ function gameQuiz(dt) {
 function gamePress(k) {
   if (!R[PAUSE] || qShow > 0) return;
   const f = el('qin'); if (!f) { if (k === 'ok') gameAnswer(''); return; }
-  if (k === 'bs') f.value = f.value.slice(0, -1);
+  if (k === 'bs') f.value = digitsOnly(f.value).slice(0, -1);
   else if (k === 'ok') gameAnswer(f.value);
-  else if (f.value.length < 4) f.value += k;
+  else if (typeof k === 'string' && k.length === 1 && k >= '0' && k <= '9' && digitsOnly(f.value).length < 4) f.value = digitsOnly(f.value) + k;
 }
 function tryPickups() {
   for (let i = 0; i < NCOIN; i++) {
     if (!coins[i * 4 + 3]) continue;
     const dx = coins[i * 4] - F[CX], dy = coins[i * 4 + 1] - F[CY], dz = coins[i * 4 + 2] - F[CZ];
-    if (dx * dx + dy * dy + dz * dz < 2.6) {
+    if (dx * dx + dy * dy + dz * dz < COIN_R2) {
       coins[i * 4 + 3] = 0; R[COINS] += 1; beginQuiz(100); return;
     }
   }
-  for (let i = 0; i < NFISH; i++) {
-    const b = i * 8;
-    if (!fishS[b + 6]) continue;
-    const dx = fishS[b] - F[CX], dy = fishS[b + 1] - F[CY], dz = fishS[b + 2] - F[CZ];
-    if (dx * dx + dy * dy + dz * dz < 2.3) {
-      fishS[b + 6] = 0; R[FISHN] += 1; beginQuiz(250); return;
-    }
-  }
+  for (let i = 0; i < NFISH; i++) if (catchFish(i)) return;
+}
+// true when the swimmer is touching the fish's body, not only its center point
+function fishTouch(b) {
+  const yw = fishS[b + 3], fx = sin(yw), fz = -cos(yw), half = 1.35;
+  const px = F[CX] - fishS[b], py = F[CY] - fishS[b + 1], pz = F[CZ] - fishS[b + 2];
+  let along = px * fx + pz * fz;
+  if (along > half) along = half; else if (along < -half) along = -half;
+  const dx = px - fx * along, dz = pz - fz * along;
+  return dx * dx + py * py + dz * dz < FISH_R2;
+}
+function catchFish(i) {
+  const b = i * 8;
+  if (!fishS[b + 6] || !fishTouch(b)) return 0;
+  fishS[b + 6] = 0; R[FISHN] += 1; beginQuiz(250); return 1;
 }
 function stepFish(dt) {
   for (let i = 0; i < NFISH; i++) {
@@ -385,9 +409,9 @@ function stepFish(dt) {
     if (!fishS[b + 6]) continue;
     const dx = fishS[b] - F[CX], dy = fishS[b + 1] - F[CY], dz = fishS[b + 2] - F[CZ];
     const d = hypot(dx, dy, dz);
-    if (d < 8) fishS[b + 7] = 1.7;
+    if (d < 6 && d > 3.4) fishS[b + 7] = 1.4;
     let spd = 2.1, turn = 0.8;
-    if (fishS[b + 7] > 0) { fishS[b + 7] -= dt; spd = 8.2; turn = 2.4; }
+    if (fishS[b + 7] > 0) { fishS[b + 7] -= dt; spd = 6.2; turn = 2.2; }
     const want = fishS[b + 7] > 0 ? atan2(dx, -dz) : fishS[b + 3] + sin(R[SURV] * 0.3 + fishS[b + 5]) * 0.8;
     const ye = wrapAng(want - fishS[b + 3]), st = turn * dt;
     fishS[b + 3] += ye > st ? st : ye < -st ? -st : ye;
@@ -479,7 +503,7 @@ function paintHud(dt) {
     const h = el('hearts');
     if (h) h.textContent = '♥'.repeat(hearts) + '♡'.repeat(hearts < 3 ? 3 - hearts : 0);
   }
-  const ai = el('airi'); if (ai) { ai.style.transform = 'scaleX(' + (R[AIR] / AIRMAX) + ')'; ai.className = R[AIR] < 12 ? 'low' : ''; }
+  const ai = el('airi'); if (ai) { ai.style.transform = 'scaleX(' + (R[AIR] / AIRMAX) + ')'; ai.className = R[AIR] < AIRLOW ? 'low' : ''; }
   const st = el('stami'); if (st) st.style.transform = 'scaleX(' + R[STAM] + ')';
 }
 function gamePaint() {
@@ -579,7 +603,7 @@ function gameTick(dt, blind) {
   if (R[STAM] < 0) R[STAM] = 0; else if (R[STAM] > 1) R[STAM] = 1;
   if (F[CY] > -4.2) R[AIR] += dt * 18; else R[AIR] -= dt;
   if (R[AIR] > AIRMAX) R[AIR] = AIRMAX; else if (R[AIR] < 0) R[AIR] = 0;
-  airWarn = R[AIR] < 12 ? (12 - R[AIR]) / 12 : 0;
+  airWarn = R[AIR] < AIRLOW ? (AIRLOW - R[AIR]) / AIRLOW : 0;
   const k = 1 - exp(-dt * 4);
   danger += (wantD - danger) * k; vignette += (wantV - vignette) * k;
   paintHud(dt);

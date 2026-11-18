@@ -649,7 +649,7 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   let ca = cos(ang); let sa = sin(ang);
   let p = vec3f(ca * i.p.x + sa * i.p.z, i.p.y + sin(g.cam.w * 1.3 + i.b.y) * .15, -sa * i.p.x + ca * i.p.z);
   let n = vec3f(ca * i.n.x + sa * i.n.z, i.n.y, -sa * i.n.x + ca * i.n.z);
-  let sc = i.b.x * 1.45;
+  let sc = i.b.x * 0.72;
   let w = i.a.xyz + p * sc;
   o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = n; o.op = i.p; o.sd = i.b.y; o.lt = 1.;
   return o;
