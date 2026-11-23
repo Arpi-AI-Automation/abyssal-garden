@@ -649,7 +649,8 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   let ca = cos(ang); let sa = sin(ang);
   let p = vec3f(ca * i.p.x + sa * i.p.z, i.p.y + sin(g.cam.w * 1.3 + i.b.y) * .15, -sa * i.p.x + ca * i.p.z);
   let n = vec3f(ca * i.n.x + sa * i.n.z, i.n.y, -sa * i.n.x + ca * i.n.z);
-  let sc = i.b.x * 0.72;
+  // 0.56 is 78% of the previous 0.72, so the coin stays bright but a little smaller
+  let sc = i.b.x * 0.56;
   let w = i.a.xyz + p * sc;
   o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = n; o.op = i.p; o.sd = i.b.y; o.lt = 1.;
   return o;
@@ -684,6 +685,77 @@ struct VO { @builtin(position) cp: vec4f, @location(0) wp: vec3f, @location(1) n
   var alb = mix(vec3f(1.4, 1.05, .35), vec3f(.85, .45, .08), top);
   alb += vec3f(1.2, .8, .2) * pow(1. - sat(dot(n, V)), 2.) * .45;
   return fin(fog(alb * (1.1 + sat(dot(n, g.sun.xyz))), i.wp, zone(i.wp)));
+}
+// turtles: a.xyz position, a.w yaw, b.x kind (0 green, 1 black), b.y phase, b.z scale (0 hides)
+@vertex fn vsTurtle(i: VI) -> VO {
+  var o: VO;
+  let yaw = i.a.w; let sy = sin(yaw); let cy = cos(yaw);
+  let T = vec3f(sy, 0., -cy); let Sd = vec3f(cy, 0., sy); let Up = vec3f(0., 1., 0.);
+  var l = i.p;
+  let flap = sin(g.cam.w * 1.7 + i.b.y) * sat(abs(l.z) - .45) * .42;
+  l.y += flap * sign(l.z);
+  let sc = i.b.z;
+  var w = vec3f(0., -400., 0.);
+  if (sc > .01) { w = i.a.xyz + (T * l.x + Up * l.y + Sd * l.z) * sc; }
+  o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = T * i.n.x + Up * i.n.y + Sd * i.n.z; o.op = i.p; o.sd = i.b.x; o.lt = 1.;
+  return o;
+}
+@fragment fn fsTurtle(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let V = normalize(g.cam.xyz - i.wp);
+  let bad = step(.5, i.sd);
+  let shell = ss(-.02, .08, i.op.y);
+  var goodC = mix(vec3f(.75, .95, .55), vec3f(.05, .72, .22), shell);
+  goodC = mix(goodC, vec3f(.02, .45, .16), ss(.15, .0, abs(fract(i.op.x * 3.5) - .5)) * shell);
+  var badC = mix(vec3f(.16, .16, .18), vec3f(.015, .015, .02), shell);
+  var alb = mix(goodC, badC, bad);
+  let eye = ss(.09, .02, min(length(i.op - vec3f(1.05, .09, .07)), length(i.op - vec3f(1.05, .09, -.07))));
+  alb = mix(alb, mix(vec3f(.9, .95, .7), vec3f(1., .15, .08), bad), eye);
+  let rim = pow(1. - sat(dot(n, V)), 2.);
+  var c = alb * (1.05 + sat(dot(n, g.sun.xyz))) + rim * mix(vec3f(.35, 1., .45), vec3f(1., .28, .18), bad) * .7;
+  c += mix(vec3f(.2, .9, .3), vec3f(1., .2, .1), bad) * eye * 1.4;
+  return fin(fog(c, i.wp, zone(i.wp)));
+}
+// sea monster: a.xyz position, a.w yaw, b.x pitch, b.z time, b.w 1 while it is on screen
+@vertex fn vsMonster(i: VI) -> VO {
+  var o: VO;
+  let yaw = i.a.w; let pit = i.b.x;
+  let cp = cos(pit); let sp = sin(pit); let sy = sin(yaw); let cy = cos(yaw);
+  let T = vec3f(cp * sy, sp, -cp * cy);
+  let Sd = vec3f(cy, 0., sy);
+  let Up = vec3f(-sy * sp, cp, cy * sp);
+  var l = i.p; var n = i.n.xyz;
+  let rear = sat(-l.x * .35);
+  let wag = sin(g.cam.w * 1.4 + i.b.z * 2. - l.x * 1.6) * rear * rear * .18;
+  let ca = cos(wag); let sa = sin(wag);
+  let px = l.x; let pz = l.z;
+  l.x = ca * px - sa * pz; l.z = sa * px + ca * pz;
+  let nx = n.x; let nz = n.z;
+  n.x = ca * nx - sa * nz; n.z = sa * nx + ca * nz;
+  let gape = sat(l.x - .35) * ss(.02, -.2, l.y);
+  l.y -= gape * (.12 + .05 * sin(g.cam.w * 2.6));
+  var w = vec3f(0., -400., 0.);
+  if (i.b.w > .5) { w = i.a.xyz + (T * l.x + Up * l.y + Sd * l.z) * 12.; }
+  o.cp = g.vp * vec4f(w, 1.); o.wp = w; o.n = T * n.x + Up * n.y + Sd * n.z; o.op = i.p; o.sd = i.b.z; o.lt = 1.;
+  return o;
+}
+@fragment fn fsMonster(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let V = normalize(g.cam.xyz - i.wp);
+  let top = ss(-.15, .45, n.y);
+  var alb = mix(vec3f(.07, .05, .12), vec3f(.012, .01, .02), top);
+  alb = mix(alb, vec3f(.1, .07, .16), ss(.4, .9, i.op.x) * (1. - top) * .5);
+  let e1 = length((i.op - vec3f(.74, .22, .36)) * vec3f(1.1, 1.15, 1.));
+  let e2 = length((i.op - vec3f(.74, .22, -.36)) * vec3f(1.1, 1.15, 1.));
+  let eye = ss(.2, .05, min(e1, e2));
+  let pupil = ss(.08, .02, min(e1, e2));
+  alb = mix(alb, vec3f(.95, .85, .25), eye);
+  alb = mix(alb, vec3f(.02, .01, .01), pupil);
+  let mouth = ss(.04, -.04, i.op.y) * ss(.4, .85, i.op.x) * ss(.28, .02, abs(i.op.z));
+  alb = mix(alb, vec3f(.03, .0, .05), mouth);
+  let rim = pow(1. - sat(dot(n, V)), 1.6);
+  var c = alb * (.35 + .9 * sat(dot(n, g.sun.xyz))) + rim * vec3f(.15, .25, .55) * .8;
+  var fogged = fog(c, i.wp, zone(i.wp));
+  fogged += vec3f(1.35, 1.05, .28) * (eye - pupil) * 1.6;
+  return fin(fogged);
 }
 `;
 

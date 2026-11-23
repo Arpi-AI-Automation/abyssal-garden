@@ -1,9 +1,9 @@
 # Abyssal Garden
 
-**A dreamy underwater world you can swim through, right in your browser — with sharks to dodge, gold to find, and math to practise.**
+**A dreamy underwater world you can swim through, right in your browser — with sharks to dodge, turtles to find, and math to practise.**
 
 Towering kelp forests, sunbeams pouring through a rippling surface, a sunken ship, manta rays gliding overhead.
-And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 127 KB HTML file**.
+And all of it is made by code: no images, no 3D models, no sound files. The whole world fits in **one 138 KB HTML file**.
 
 ![Kelp forest with a stone whale tail and a manta ray](.github/screenshots/whale-fluke.jpg)
 
@@ -17,18 +17,22 @@ Nothing to install, and it works offline. It needs a browser with **WebGPU**. If
 
 ## How a run works
 
-Two sharks are already swimming near you when you dive in. More join as the minutes pass, up to five, and they get a little faster. They stay in the area instead of vanishing across the garden. An arrow at the edge of the screen points at any shark you cannot see, and a dark outline keeps their shape readable in the murk.
+Two sharks are already swimming near you when you dive in. A third joins after 140 seconds, and a fourth after 220 seconds. They get a little faster, and they stay in the area instead of vanishing across the garden. An arrow at the edge of the screen points at any shark you cannot see, and a dark outline keeps their shape readable in the murk.
 
 - A shark that spots you circles and speeds up for a couple of seconds before it can catch you. The red edge glow and the heartbeat start then.
 - **Sprint** (`Shift`, or a second finger) is faster than a chase, but only for a short burst. The gold bar is stamina.
 - Thick kelp and the inside of the sunken ship break its line of sight. Getting far enough away does too. It then gives up and goes back to wandering.
-- A shark can catch you only from the front, while you are looking toward it. One that comes from behind or from off the side of the screen cannot.
+- Once that warning is finished, the shark's head reaching you costs one heart, even if you have looked away. A flicker of kelp does not cancel a bite that was already coming. The hold of the ship still keeps you safe.
 
-You have **three hearts** and **75 seconds of air**. The cyan bar is air. Swim up to the surface to fill it. When it is low you hear a warning beep. Running out of air, or being caught, costs a heart and gives you a short moment where you cannot be caught. The last heart ends the run.
+You start with **three hearts**, and you can hold up to **five**. Empty hearts on the HUD are the room you have left. You have **75 seconds of air**. The cyan bar is air. Swim up to the surface to fill it. When it is low you hear a warning beep. Running out of air, or being caught, costs a heart. The screen blinks for 2 seconds and the shark is pushed away, so one bite is one heart. The last heart ends the run.
 
-**Gold coins** sit in the kelp, around the wreck and near the seabed. They glow. **Golden fish** swim about and dart away if you get close; they are worth more. A compass ring at the bottom left points toward the nearest coin.
+**Gold coins** sit in the kelp, around the wreck and near the seabed. They glow. **Golden fish** swim about and dart away if you get close; they are worth more, and a right answer also gives a heart. A compass ring at the bottom left points toward the nearest coin.
 
-Touching a coin or a golden fish freezes the whole garden, including the sharks and the air, and asks a math question. You have 20 seconds. The questions stay at the same level the whole time: times tables up to 12×12, adding two two-digit numbers, or subtracting two two-digit numbers without going below zero. A right answer scores points, and a streak of right answers is worth more each time. A wrong answer or a timeout costs a heart, and the right answer is shown for a moment so you can see it. Type the number, or tap the pad.
+Two turtles patrol slowly. The **green** one gives a heart (it will not go past five). The **black** one, with red eyes, takes a heart. Either one swims off and comes back somewhere else after 12 seconds.
+
+At **two minutes**, once per run, a huge sea monster rises in front of you, the water goes dark, and the view shakes. It takes one heart and then sinks away.
+
+Touching a coin or a golden fish freezes the whole garden, including the sharks and the air, and asks a math question. You have 20 seconds. The questions stay at the same level the whole time: times tables up to 12×12, adding two two-digit numbers, or subtracting two two-digit numbers without going below zero. A right answer scores points, and a streak of right answers is worth more each time. A wrong answer or a timeout costs a heart, and the right answer is shown for a moment so you can see it. Type the number, or tap the pad. Only digits are accepted.
 
 The clock is at the top. Your best score and best time are remembered in this browser (`abyssalScore` and `abyssalBest`). **Game over** shows the score, how many coins and fish you found, and the time.
 
@@ -108,8 +112,8 @@ This writes a new `index.html` next to this README. `npm run build:readable` wri
 | [`source/src/world.js`](source/src/world.js) | The world layout: rock walls, arches, tunnels, kelp forests, sponge gardens, fish schools, mantas, the ship and the whale tail. **A good place to start.** |
 | [`source/src/shaders.js`](source/src/shaders.js) | The look: water and fog colors, lighting, kelp, rocks, the water surface and light rays (WGSL shader code) |
 | [`source/src/main.js`](source/src/main.js) | The renderer, the camera, the controls, the six viewpoints and the camera path the world is laid out around |
-| [`source/src/game.js`](source/src/game.js) | Sharks, air, stamina, coins, golden fish, the math questions and the score |
-| [`source/src/audio.js`](source/src/audio.js) | The soundscape, plus the heartbeat while the shark is hunting |
+| [`source/src/game.js`](source/src/game.js) | Sharks, turtles, the sea monster, air, stamina, coins, golden fish, the math questions and the score |
+| [`source/src/audio.js`](source/src/audio.js) | The soundscape, the heartbeat while a shark is hunting, and the stings for hearts and the monster |
 | [`source/src/quality.js`](source/src/quality.js) | The detail levels: which one a device starts on, and what is remembered between visits |
 | [`source/src/math.js`](source/src/math.js) | Noise, random numbers and mesh-building helpers |
 | [`source/src/dev.js`](source/src/dev.js) | Development tools (fly-through and benchmark), only in `dev.html` |
