@@ -107,6 +107,8 @@ const pManta = scenePipe(mAnim, 'vsManta', 'fsManta', [vbSolid, ibAnim]);
 const pShark = scenePipe(mAnim, 'vsShark', 'fsShark', [vbSolid, ibAnim]);
 const pCoin = scenePipe(mAnim, 'vsCoin', 'fsCoin', [vbSolid, ibAnim]);
 const pGold = scenePipe(mAnim, 'vsGold', 'fsGold', [vbSolid, ibAnim]);
+const pTurtle = scenePipe(mAnim, 'vsTurtle', 'fsTurtle', [vbSolid, ibAnim]);
+const pMonster = scenePipe(mAnim, 'vsMonster', 'fsMonster', [vbSolid, ibAnim]);
 const pSurf = scenePipe(mSurf, 'vs', 'fs', [], { strip: true }), pBack = scenePipe(mSurf, 'vsB', 'fsB', [], { strip: true });
 const pBub = scenePipe(mSpr, 'vsBub', 'fsBub', [ibBub], { strip: true, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } });
 const ADD = { color: { srcFactor: 'one', dstFactor: 'one' }, alpha: { srcFactor: 'one', dstFactor: 'one' } };
@@ -277,15 +279,15 @@ D = Wd.gy = T.smp = null; // with gy goes the generator's working memory (about 
 
 await say('Building set pieces…', 0.94, 1200);
 // mesh ids: 0-3 boulders, 4-6 sponges, 7-8 coral, 9 tube sponge, 10 whale fluke, 11 ship, 12 manta, 13 fish,
-// 14-20 rock chunks + pebbles, 21-22 coral LOD, 23-25 far LOD of the large rock chunks
+// 14-20 rock chunks + pebbles, 21-22 coral LOD, 23-25 far LOD of the large rock chunks, then shark, coin, turtle, monster
 const meshes = [meshChunk(1, 3), meshChunk(7, 3), meshChunk(13, 3), meshChunk(22, 3),
   meshLathe([[0, 0, 0.5], [0.34, 0, 0.6], [0.5, 0.2, 0.85], [0.6, 0.6, 1], [0.55, 0.95, 1], [0.47, 1.08, 1], [0.38, 1.1, 0.9], [0.3, 1.0, 0.45], [0.26, 0.6, 0.15], [0, 0.35, 0.05]], 18, 0.3, 9),
   meshLathe([[0, 0, 0.5], [0.2, 0, 0.6], [0.26, 0.5, 0.85], [0.4, 1.25, 1], [0.4, 1.42, 1], [0.33, 1.48, 0.9], [0.26, 1.38, 0.4], [0.18, 0.8, 0.12], [0, 0.5, 0.05]], 16, 0.35, 8),
   meshLathe([[0, 0, 0.5], [0.5, 0, 0.7], [0.72, 0.18, 1], [0.74, 0.38, 1], [0.62, 0.5, 0.9], [0.48, 0.42, 0.45], [0.4, 0.2, 0.15], [0, 0.14, 0.06]], 18, 0.25, 10),
   meshCoral(0), meshCoral(1), meshTubes()].map((m) => m.build());
 meshes.push(meshFluke(), meshShip().build(), meshManta().build(), meshFish().build(),
-  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build(), meshShark().build(), meshCoin().build());
-const SHARK = meshes[meshes.length - 2], COINM = meshes[meshes.length - 1];
+  meshChunk(3).build(), meshChunk(11).build(), meshChunk(29).build(), meshChunk(5, 3).build(), meshChunk(17, 3).build(), meshChunk(41, 3).build(), meshChunk(9, 1).build(), meshCoral(0, 1).build(), meshCoral(1, 1).build(), meshChunk(5, 2, 1).build(), meshChunk(17, 2, 1).build(), meshChunk(41, 2, 1).build(), meshShark().build(), meshCoin().build(), meshTurtle().build(), meshMonster().build());
+const SHARK = meshes[meshes.length - 4], COINM = meshes[meshes.length - 3], TURT = meshes[meshes.length - 2], MONS = meshes[meshes.length - 1];
 let nV = 0, nI = 0;
 for (const m of meshes) { m.v0 = nV; m.i0 = nI; nV += m.nv; nI += m.ib.length; }
 const allV = new Uint8Array(nV * 16), allI = new Uint32Array(nI);
@@ -301,6 +303,8 @@ const ibFish = buf(Wd.fish, BU.VERTEX), ibManta = buf(Wd.mantas, BU.VERTEX), ibB
 const ibShark = device.createBuffer({ size: NS * 32, usage: BU.VERTEX | BU.COPY_DST });
 const ibCoin = device.createBuffer({ size: NCOIN * 32, usage: BU.VERTEX | BU.COPY_DST });
 const ibGold = device.createBuffer({ size: NFISH * 32, usage: BU.VERTEX | BU.COPY_DST });
+const ibTurtle = device.createBuffer({ size: NTUR * 32, usage: BU.VERTEX | BU.COPY_DST });
+const ibMonster = device.createBuffer({ size: 32, usage: BU.VERTEX | BU.COPY_DST });
 const ibGl = buf(Wd.glints, BU.VERTEX), nGl = Wd.glints.length / 8;
 const nFish = Wd.fish.length / 8, nManta = Wd.mantas.length / 8, nBub = Wd.bubbles.length / 8, nSnow = Wd.snow.length / 4;
 const MANTA = meshes[12], FISH = meshes[13];
@@ -432,7 +436,12 @@ function drawCells(r, start, lo, hi, mar, indexed, verts, minD, maxD) {
 }
 function render() {
   // camera basis (right vector is horizontal)
-  const cx = F[CX], cy = F[CY], cz = F[CZ], pitch = F[PIT], yaw = F[YAW];
+  let jx = 0, jy = 0, jz = 0;
+  if (shake > 0.001) {
+    const t = F[TIME];
+    jx = sin(t * 53) * shake * 0.45; jy = sin(t * 71) * shake * 0.28; jz = cos(t * 47) * shake * 0.45;
+  }
+  const cx = F[CX] + jx, cy = F[CY] + jy, cz = F[CZ] + jz, pitch = F[PIT], yaw = F[YAW];
   const cp = cos(pitch), fy = sin(pitch), rx = cos(yaw), rz = sin(yaw), fx = cp * rz, fz = -cp * rx;
   const ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;
   F[FX] = fx; F[FY] = fy; F[FZ] = fz; F[RX] = rx; F[RZ] = rz; F[UX] = ux; F[UY] = uy; F[UZ] = uz;
@@ -453,6 +462,8 @@ function render() {
   Q.writeBuffer(ibShark, 0, sharkInst);
   Q.writeBuffer(ibCoin, 0, coinInst);
   Q.writeBuffer(ibGold, 0, goldInst);
+  Q.writeBuffer(ibTurtle, 0, turInst);
+  Q.writeBuffer(ibMonster, 0, monInst);
   WT[0] = F[TIME]; Q.writeBuffer(uboW, 0, WT);
 
   { let cr = floor((cz - OZ) / CELLW) | 0; cr = cr < 0 ? 0 : cr > CELLS - 1 ? CELLS - 1 : cr; let n = 0; rowOrd[n++] = cr; for (let d = 1; d < CELLS; d++) { if (cr - d >= 0) rowOrd[n++] = cr - d; if (cr + d < CELLS) rowOrd[n++] = cr + d; } }
@@ -486,6 +497,8 @@ function render() {
   r.setPipeline(pShark); r.setVertexBuffer(0, vbMesh); r.setVertexBuffer(1, ibShark); r.setIndexBuffer(ibMesh, 'uint32');
   r.drawIndexed(SHARK.ib.length, NS, SHARK.i0, SHARK.v0, 0);
   r.setPipeline(pGold); r.setVertexBuffer(1, ibGold); r.drawIndexed(FISH.ib.length, NFISH, FISH.i0, FISH.v0, 0);
+  r.setPipeline(pTurtle); r.setVertexBuffer(1, ibTurtle); r.drawIndexed(TURT.ib.length, NTUR, TURT.i0, TURT.v0, 0);
+  r.setPipeline(pMonster); r.setVertexBuffer(1, ibMonster); r.drawIndexed(MONS.ib.length, 1, MONS.i0, MONS.v0, 0);
   // kelp and plants: 9-row blades up close, 5 rows mid-range, a decimated set far away
   r.setPipeline(pLeaf); r.setVertexBuffer(0, ibBig); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 18, 0, 24);
   r.setPipeline(pLeaf5); drawCells(r, Wd.big.start, Wd.big.lo, Wd.big.hi, 5, false, 10, 24, 58);
@@ -589,7 +602,7 @@ function frame(now) {
     collide();
   }
   // questions, the menu and game over hold the sharks, the air and the clock
-  if (gamePaused()) { if (gameQuiz(dt)) onOver(); }
+  if (gamePaused()) { if (gameQuiz(dt)) onOver(); paintFx(dt); }
   else if (R[OVER]) { /* end screen is up */ }
   else if (!R[RUN] || menu) gameIdle(dt);
   else if (gameTick(dt, flyCam)) onOver();
@@ -652,6 +665,7 @@ let menu = true, caught = false, flyCam = false;
 function fmt(t) { const s = t < 0 ? 0 : t | 0, m = (s / 60) | 0, r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r; }
 function onOver() {
   caught = true; menu = true; release();
+  gameClearFx();
   F[VX] = F[VY] = F[VZ] = 0;
   saveScores();
   body.className = 'c';

@@ -79,7 +79,21 @@ function mkSound(ac) {
           airAt += 1.2 - warn * 0.75;
         }
       } else airAt = t + 0.5;
-    } catch { beatAt = t + 0.4; dub = 0; airAt = t + 0.5; }
+      if (cue === 1) { play(chime, t, 620, 880, 0.32, 0.07, 0.02); play(chime, t + 0.08, 880, 1240, 0.38, 0.06, 0.02); cue = 0; }
+      else if (cue === 2) { play(whale, t, 150, 62, 0.26, 0.14, 0.01); cue = 0; }
+      if (roar) {
+        roar = 0;
+        const src = ac.createBufferSource(), g = ac.createGain();
+        src.buffer = nb; src.playbackRate.setValueAtTime(0.22, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.28, t + 0.12);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.45);
+        src.connect(g); g.connect(BQ('lowpass', 180, 0.7, out));
+        src.start(t); src.stop(t + 1.5);
+        play(whale, t, 48, 32, 1.35, 0.18, 0.06);
+        play(whale, t + 0.18, 72, 40, 1.1, 0.1, 0.05);
+      }
+    } catch { beatAt = t + 0.4; dub = 0; airAt = t + 0.5; cue = 0; roar = 0; }
     if (t > tB) { // a burst of 1-6 bubbles: short rising blips, smaller bubbles higher and shorter
       let tt = t;
       for (let n = 1 + rnd() * rnd() * 6 | 0; n--;) { const f = rr(380, 1300); play(bub, tt, f, f * rr(1.4, 2.2), 0.05 + 40 / f, rr(0.03, 0.08), 0.006); tt += rr(0.07, 0.2); }

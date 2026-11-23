@@ -108,12 +108,13 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 
 /* hearts, air and sprint, top left while swimming */
 #hud {
-  position: absolute; top: .55em; left: .7em; z-index: 2; display: none; width: 13em;
+  position: absolute; top: .55em; left: .7em; z-index: 2; display: none; width: 16em;
   pointer-events: none; font-size: .85em; letter-spacing: .06em;
 }
 .g #hud { display: block; }
 .c #hud, .m #hud, .l #hud { display: none; }
-#hearts { margin: 0 0 .25em; color: #ff9a9a; letter-spacing: .2em; font-size: 1.35em; text-shadow: 0 1px 4px #000; }
+#hearts { margin: 0 0 .25em; color: #ff9a9a; letter-spacing: .12em; font-size: 1.35em; text-shadow: 0 1px 4px #000; }
+body.ifr #hearts { opacity: .25; }
 #sc { margin: .15em 0 0; font-size: .8em; letter-spacing: .08em; }
 .bar { height: .42em; margin: .28em 0; overflow: hidden; border-radius: 1em; background: #03131cb3; box-shadow: inset 0 0 0 2px #7ff3ff55; }
 .bar i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(1); }
@@ -122,6 +123,20 @@ svg { width: 1.5em; height: 1.5em; fill: currentColor; }
 #stami { background: linear-gradient(90deg, #ffe08a, #f0a020); }
 #so { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
 .m #so, .l #so, .c #so { visibility: hidden; }
+#scare {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 50% 58%, #0000 16%, #02030ae6 68%, #000 100%);
+}
+#blink {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: #f4fbff;
+}
+body.g.ifr #blink { opacity: .42; }
+#toast {
+  position: absolute; top: 18%; left: 50%; z-index: 3; transform: translateX(-50%);
+  margin: 0; padding: .4em .85em; border-radius: .6em; opacity: 0; pointer-events: none;
+  background: #fff6d8; color: #3a2a08; font: 800 1.15em/1.3 system-ui, sans-serif;
+  box-shadow: 0 .25em 0 #e6c56a, 0 .7em 1.4em #0008; white-space: nowrap;
+}
 
 /* big friendly math card for a third grader */
 #quiz {
@@ -200,8 +215,11 @@ body.c canvas { filter: blur(.35vmax) brightness(.42) saturate(.75); transform: 
 <body class=l>
 <canvas id=c></canvas>
 <canvas id=so></canvas>
+<div id=scare></div>
+<div id=blink></div>
+<p id=toast></p>
 <div id=hud>
-  <p id=hearts>♥♥♥</p>
+  <p id=hearts>♥♥♥♡♡</p>
   <div class=bar><i id=airi></i></div>
   <div class=bar><i id=stami></i></div>
   <p id=sc>0</p>
@@ -212,7 +230,7 @@ body.c canvas { filter: blur(.35vmax) brightness(.42) saturate(.75); transform: 
   <div id=a>
     <div id=l><div id=p><i id=b></i></div><p id=s>Diving…</p><p id=w hidden>Use Google Chrome for optimal experience</p></div>
     <div id=g>
-      <p id=goal>Collect gold coins and golden fish. Each one asks a math question — times tables up to 12×12, or adding and subtracting two-digit numbers. A right answer scores. A miss costs a heart. You have three hearts, 75 seconds of air, and a short sprint. Sharks only catch you from the front. Kelp and the sunken ship hide you.</p>
+      <p id=goal>Collect gold coins and golden fish. Each one asks a math question — times tables up to 12×12, or adding and subtracting two-digit numbers. A right answer scores, and a golden fish also gives a heart, up to five. A green turtle gives a heart. A black turtle takes one. Sharks take a heart when their head reaches you. At two minutes a sea monster appears once. You start with three hearts and 75 seconds of air.</p>
       <button id=d>Dive in</button>
       <p id=q><span>Detail</span><button>Low</button><button>Medium</button><button>High</button></p>
       <div id=k>
@@ -252,7 +270,7 @@ body.c canvas { filter: blur(.35vmax) brightness(.42) saturate(.75); transform: 
     <p id=qq>6 × 7</p>
     <input id=qin inputmode=numeric pattern="[0-9]*" autocomplete=off>
     <p id=qnote>Twenty seconds. A right answer scores. A miss costs a heart.</p>
-    <p id=qt>10</p>
+    <p id=qt>20</p>
     <div id=pad>
       <button type=button data-k=1>1</button><button type=button data-k=2>2</button><button type=button data-k=3>3</button>
       <button type=button data-k=4>4</button><button type=button data-k=5>5</button><button type=button data-k=6>6</button>

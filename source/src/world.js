@@ -663,3 +663,76 @@ function meshCoin() {
   }
   return m;
 }
+// sea turtle, nose +x. Shell on top, head forward, four flippers. Scaled by 2.6 in the shader (~5 m).
+function meshTurtle() {
+  const m = new Mesh(), S = 8;
+  const xs = [-0.7, -0.42, -0.12, 0.18, 0.42, 0.62];
+  const rings = [];
+  for (const x of xs) {
+    const u = x / 0.78, k = max(0, 1 - u * u);
+    const h = 0.26 * sqrt(k) + 0.02, w = 0.58 * sqrt(max(k, 0.05));
+    const ring = [];
+    for (let s = 0; s < S; s++) {
+      const a = s / S * TAU, sn = sin(a), cs = cos(a);
+      ring.push(m.v(x, sn * h * (sn > 0 ? 1.08 : 0.4), cs * w, sn > 0.1 ? 1 : 0));
+    }
+    rings.push(ring);
+  }
+  for (let i = 0; i < rings.length - 1; i++) for (let s = 0; s < S; s++) {
+    const s2 = (s + 1) % S;
+    m.quad(rings[i][s], rings[i][s2], rings[i + 1][s2], rings[i + 1][s]);
+  }
+  const nose = m.v(0.78, 0, 0, 0), tail = m.v(-0.84, 0.02, 0, 0);
+  for (let s = 0; s < S; s++) {
+    m.tri(nose, rings[rings.length - 1][(s + 1) % S], rings[rings.length - 1][s]);
+    m.tri(rings[0][s], tail, rings[0][(s + 1) % S]);
+  }
+  m.tube([[0.58, -0.02, 0], [0.82, 0.02, 0], [1.02, 0.05, 0], [1.16, 0.02, 0]], (k) => 0.11 - k * 0.012, 6, true);
+  const eye = (z) => { m.tube([[1.0, 0.07, z], [1.08, 0.1, z]], 0.04, 5, true); };
+  eye(0.07); eye(-0.07);
+  const flip = (z, front) => {
+    const x0 = front ? 0.22 : -0.28, x1 = front ? 0.48 : -0.02, x2 = front ? 0.02 : -0.48, z1 = z * 1.2;
+    const a = m.v(x0, -0.02, z * 0.32, 0), b = m.v(x1, -0.04, z1, 0), c = m.v(x2, -0.03, z1, 0);
+    const a2 = m.v(x0, -0.07, z * 0.32, 0), b2 = m.v(x1, -0.09, z1, 0), c2 = m.v(x2, -0.08, z1, 0);
+    m.tri(a, b, c); m.tri(a2, c2, b2);
+    m.tri(a, a2, b); m.tri(a2, b2, b);
+    m.tri(b, b2, c); m.tri(b2, c2, c);
+    m.tri(c, c2, a); m.tri(c2, a2, a);
+  };
+  flip(1, 1); flip(-1, 1); flip(1, 0); flip(-1, 0);
+  return m;
+}
+// one big sea monster, nose +x, body trailing back. Scaled by 12 in the shader (about 40 m).
+function meshMonster() {
+  const m = new Mesh(), S = 10;
+  const prof = [[-2.4, 0.1, 0.1], [-1.9, 0.2, 0.18], [-1.3, 0.32, 0.28], [-0.7, 0.4, 0.36], [-0.15, 0.52, 0.48], [0.3, 0.62, 0.56], [0.65, 0.5, 0.5], [0.92, 0.32, 0.34], [1.12, 0.14, 0.16]];
+  const rings = [];
+  for (const [x, h, w] of prof) {
+    const ring = [];
+    for (let s = 0; s < S; s++) {
+      const a = s / S * TAU, sn = sin(a), cs = cos(a);
+      ring.push(m.v(x, sn * h * (sn > 0 ? 0.92 : 1.08), cs * w));
+    }
+    rings.push(ring);
+  }
+  for (let i = 0; i < rings.length - 1; i++) for (let s = 0; s < S; s++) {
+    const s2 = (s + 1) % S;
+    m.quad(rings[i][s], rings[i][s2], rings[i + 1][s2], rings[i + 1][s]);
+  }
+  const tip = m.v(1.28, -0.02, 0), nose = rings[rings.length - 1], tail = rings[0], ped = m.v(-2.7, 0, 0);
+  for (let s = 0; s < S; s++) { m.tri(tip, nose[s], nose[(s + 1) % S]); m.tri(tail[s], ped, tail[(s + 1) % S]); }
+  m.tube([[0.35, 0.48, 0.16], [0.5, 0.82, 0.24], [0.58, 1.12, 0.28]], (k) => 0.09 - k * 0.018, 5, true);
+  m.tube([[0.35, 0.48, -0.16], [0.5, 0.82, -0.24], [0.58, 1.12, -0.28]], (k) => 0.09 - k * 0.018, 5, true);
+  m.tube([[0.7, 0.2, 0.34], [0.78, 0.24, 0.46]], 0.16, 8, true);
+  m.tube([[0.7, 0.2, -0.34], [0.78, 0.24, -0.46]], 0.16, 8, true);
+  const fin = (z) => {
+    const a = m.v(0.15, -0.05, z * 0.2), b = m.v(0.45, -0.12, z * 0.95), c = m.v(-0.15, -0.08, z * 0.7);
+    const a2 = m.v(0.15, -0.12, z * 0.2), b2 = m.v(0.45, -0.2, z * 0.95), c2 = m.v(-0.15, -0.16, z * 0.7);
+    m.tri(a, b, c); m.tri(a2, c2, b2);
+    m.tri(a, a2, b); m.tri(a2, b2, b);
+    m.tri(b, b2, c); m.tri(b2, c2, c);
+    m.tri(c, c2, a); m.tri(c2, a2, a);
+  };
+  fin(1); fin(-1);
+  return m;
+}
